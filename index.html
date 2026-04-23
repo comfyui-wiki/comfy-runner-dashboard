@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>comfy-runner dashboard</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #0d0d0d;
+  color: #e0e0e0;
+  min-height: 100vh;
+}
+
+/* Layout */
+.sidebar {
+  position: fixed; left: 0; top: 0; bottom: 0; width: 220px;
+  background: #111; border-right: 1px solid #222;
+  overflow-y: auto; padding: 1.25rem 0;
+}
+
+.main {
+  margin-left: 220px;
+  padding: 1.75rem 2rem;
+  min-height: 100vh;
+}
+
+/* Sidebar */
+.sidebar-title {
+  font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em;
+  color: #444; text-transform: uppercase;
+  padding: 0 1rem 0.75rem;
+}
+
+.node-item {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 1rem; cursor: pointer;
+  font-size: 0.82rem; color: #888;
+  border-left: 2px solid transparent;
+  transition: all 0.1s;
+}
+.node-item:hover { background: #1a1a1a; color: #ddd; }
+.node-item.active { color: #fff; border-left-color: #3b82f6; background: #1a1a1a; }
+.node-item .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.dot-on  { background: #22c55e; box-shadow: 0 0 5px #22c55e88; }
+.dot-off { background: #444; }
+
+.sidebar-section {
+  margin-top: 1.25rem;
+  padding: 0 1rem 0.4rem;
+  font-size: 0.68rem; color: #333; text-transform: uppercase; letter-spacing: 0.07em;
+}
+
+/* Header */
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+.page-title { font-size: 1.1rem; font-weight: 600; color: #fff; }
+.page-sub   { font-size: 0.75rem; color: #444; margin-top: 0.2rem; }
+
+/* Buttons */
+button {
+  cursor: pointer; border: none; border-radius: 6px;
+  font-size: 0.78rem; font-weight: 500;
+  padding: 0.4rem 0.9rem; transition: opacity 0.15s;
+}
+button:disabled { opacity: 0.35; cursor: not-allowed; }
+button:not(:disabled):hover { opacity: 0.82; }
+.btn-blue   { background: #2563eb; color: #fff; }
+.btn-green  { background: #16a34a; color: #fff; }
+.btn-red    { background: #dc2626; color: #fff; }
+.btn-orange { background: #d97706; color: #fff; }
+.btn-ghost  { background: #1e1e1e; color: #aaa; border: 1px solid #2a2a2a; }
+.btn-sm     { padding: 0.28rem 0.65rem; font-size: 0.72rem; }
+
+/* Instance cards */
+.instance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.instance-card {
+  background: #161616; border: 1px solid #222; border-radius: 10px;
+  padding: 1rem 1.1rem;
+}
+
+.inst-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
+.inst-name { font-size: 0.9rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 0.45rem; }
+.inst-actions { display: flex; gap: 0.4rem; }
+
+.inst-version {
+  display: flex; gap: 0.4rem; align-items: center;
+  margin-bottom: 0.55rem; flex-wrap: wrap;
+}
+.ver-tag    { background: #1a1a3a; color: #818cf8; font-size: 0.68rem; padding: 0.1rem 0.45rem; border-radius: 4px; font-weight: 600; }
+.ver-branch { color: #6ee7b7; font-size: 0.68rem; }
+.ver-commit { font-family: "SF Mono", monospace; font-size: 0.68rem; color: #555; background: #1a1a1a; padding: 0.1rem 0.4rem; border-radius: 4px; cursor: default; }
+
+.inst-meta {
+  display: flex; gap: 0.75rem; font-size: 0.72rem; color: #555;
+  margin-bottom: 0.8rem;
+}
+.meta-val { color: #888; }
+
+/* Endpoint sections */
+.ep-section { margin-bottom: 1rem; }
+.ep-section-title {
+  font-size: 0.68rem; font-weight: 600; letter-spacing: 0.07em;
+  text-transform: uppercase; color: #444;
+  margin-bottom: 0.45rem;
+}
+
+.ep-row {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.3rem 0.5rem; border-bottom: 1px solid #1c1c1c;
+  font-size: 0.75rem; border-radius: 5px; cursor: default;
+  transition: background 0.1s;
+}
+.ep-row:last-child { border-bottom: none; }
+.ep-row:hover { background: #1e1e1e; }
+
+.method-badge {
+  font-size: 0.62rem; font-weight: 700; padding: 0.1rem 0.38rem;
+  border-radius: 4px; flex-shrink: 0; min-width: 38px; text-align: center;
+}
+.m-get    { background: #1e3a5f; color: #60a5fa; }
+.m-post   { background: #14532d; color: #86efac; }
+.m-put    { background: #451a03; color: #fdba74; }
+.m-delete { background: #450a0a; color: #fca5a5; }
+
+.ep-path { color: #888; flex: 1; font-family: "SF Mono", monospace; font-size: 0.72rem; }
+.ep-desc { color: #555; font-size: 0.7rem; flex: 1.2; }
+
+.ep-btn-group { display: flex; gap: 0.3rem; flex-shrink: 0; }
+
+/* Response log */
+.resp-box {
+  margin-top: 0.5rem; background: #0a0a0a; border: 1px solid #1e1e1e;
+  border-radius: 6px; padding: 0.6rem 0.8rem;
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 0.7rem; color: #6ee7b7;
+  max-height: 200px; overflow-y: auto;
+  white-space: pre-wrap; word-break: break-all;
+  display: none;
+}
+.resp-box.visible { display: block; }
+.resp-error { color: #f87171; }
+
+/* Global response panel */
+.resp-panel {
+  background: #111; border: 1px solid #222; border-radius: 10px;
+  padding: 1rem 1.25rem; margin-bottom: 1.5rem;
+}
+.resp-panel-title {
+  font-size: 0.72rem; color: #555; margin-bottom: 0.5rem;
+  display: flex; justify-content: space-between;
+}
+
+/* Tabs */
+.tabs { display: flex; gap: 0; margin-bottom: 1.25rem; border-bottom: 1px solid #222; }
+.tab {
+  padding: 0.5rem 1rem; font-size: 0.8rem; color: #555; cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.tab:hover { color: #aaa; }
+.tab.active { color: #fff; border-bottom-color: #3b82f6; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Misc */
+.badge {
+  font-size: 0.65rem; padding: 0.12rem 0.45rem; border-radius: 99px; font-weight: 500;
+}
+.badge-healthy   { background: #14532d; color: #86efac; }
+.badge-unhealthy { background: #450a0a; color: #fca5a5; }
+.badge-running   { background: #1e3a5f; color: #93c5fd; }
+.badge-stopped   { background: #1c1c1c; color: #666; }
+
+.spinner {
+  display: inline-block; width: 11px; height: 11px;
+  border: 2px solid #2a2a2a; border-top-color: #3b82f6;
+  border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.empty { color: #333; font-size: 0.85rem; padding: 3rem 0; text-align: center; }
+
+.input-row { display: flex; gap: 0.4rem; align-items: center; }
+.ep-input {
+  background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 5px;
+  color: #ddd; font-size: 0.72rem; padding: 0.28rem 0.5rem;
+  font-family: "SF Mono", monospace; width: 100%;
+}
+.ep-input:focus { outline: none; border-color: #3b82f6; }
+
+.json-editor {
+  width: 100%; min-height: 80px;
+  background: #111; border: 1px solid #2a2a2a; border-radius: 6px;
+  color: #ddd; font-family: "SF Mono", monospace; font-size: 0.72rem;
+  padding: 0.5rem 0.75rem; resize: vertical;
+}
+.json-editor:focus { outline: none; border-color: #3b82f6; }
+
+.modal-overlay {
+  position: fixed; inset: 0; background: #00000099;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100; display: none;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: #161616; border: 1px solid #2a2a2a; border-radius: 12px;
+  padding: 1.5rem; width: 520px; max-width: 95vw; max-height: 85vh; overflow-y: auto;
+}
+.modal-title { font-size: 0.95rem; font-weight: 600; color: #fff; margin-bottom: 1rem; }
+.modal-footer { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
+.form-row { margin-bottom: 0.75rem; }
+.form-label { font-size: 0.72rem; color: #777; margin-bottom: 0.25rem; display: block; }
+
+/* Deploy modal options */
+.dm-opt {
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  background: #111; border: 1px solid #2a2a2a; border-radius: 7px;
+  padding: 0.6rem 0.75rem; cursor: pointer; transition: border-color 0.1s;
+}
+.dm-opt input[type=radio] { margin-top: 2px; accent-color: #3b82f6; flex-shrink: 0; }
+.dm-opt:has(input:checked) { border-color: #3b82f6; background: #0f1e38; }
+.dm-opt-inner { flex: 1; }
+.dm-opt-title { font-size: 0.78rem; font-weight: 600; color: #ddd; }
+.dm-opt-desc  { font-size: 0.68rem; color: #555; margin-top: 0.1rem; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="sidebar-title">comfy-runner</div>
+  <div id="sidebar-nodes">
+    <div style="padding: 0.5rem 1rem; font-size:0.75rem; color:#333">Loading…</div>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <div class="page-header">
+    <div>
+      <div class="page-title" id="page-title">Select a node</div>
+      <div class="page-sub" id="page-sub">–</div>
+    </div>
+    <div style="display:flex;gap:0.5rem">
+      <button class="btn-ghost" onclick="refreshCurrent()">↻ Refresh</button>
+      <button class="btn-green" id="btn-update" onclick="doSelfUpdate()" style="display:none">⬆ Self-update</button>
+    </div>
+  </div>
+
+  <div id="main-content">
+    <div class="empty">← Select a node from the sidebar</div>
+  </div>
+</div>
+
+<!-- Generic modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">Call endpoint</div>
+    <div class="form-row">
+      <label class="form-label">Path</label>
+      <input class="ep-input" id="modal-path-preview" readonly style="color:#555">
+    </div>
+    <div class="form-row" id="modal-body-row">
+      <label class="form-label">Request body (JSON)</label>
+      <textarea class="json-editor" id="modal-body" placeholder="{}"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn-blue" onclick="submitModal()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Deploy modal -->
+<div class="modal-overlay" id="deploy-modal">
+  <div class="modal" style="width:480px">
+    <div class="modal-title">Deploy ComfyUI</div>
+    <div style="font-size:0.75rem;color:#555;margin-bottom:1rem">
+      Instance: <span id="dm-instance" style="color:#aaa"></span>
+    </div>
+
+    <!-- Mode selector -->
+    <div class="form-row">
+      <label class="form-label">What to deploy</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem">
+        <label class="dm-opt" id="dm-opt-latest">
+          <input type="radio" name="dm-mode" value="latest" checked onchange="dmModeChange()">
+          <div class="dm-opt-inner">
+            <div class="dm-opt-title">Latest release</div>
+            <div class="dm-opt-desc">Update to newest stable ComfyUI release</div>
+          </div>
+        </label>
+        <label class="dm-opt" id="dm-opt-pull">
+          <input type="radio" name="dm-mode" value="pull" onchange="dmModeChange()">
+          <div class="dm-opt-inner">
+            <div class="dm-opt-title">Pull current branch</div>
+            <div class="dm-opt-desc">Fetch latest commits on tracked branch</div>
+          </div>
+        </label>
+        <label class="dm-opt" id="dm-opt-branch">
+          <input type="radio" name="dm-mode" value="branch" onchange="dmModeChange()">
+          <div class="dm-opt-inner">
+            <div class="dm-opt-title">Branch</div>
+            <div class="dm-opt-desc">Switch to a specific branch</div>
+          </div>
+        </label>
+        <label class="dm-opt" id="dm-opt-tag">
+          <input type="radio" name="dm-mode" value="tag" onchange="dmModeChange()">
+          <div class="dm-opt-inner">
+            <div class="dm-opt-title">Tag / release</div>
+            <div class="dm-opt-desc">Pin to a specific git tag</div>
+          </div>
+        </label>
+        <label class="dm-opt" id="dm-opt-commit">
+          <input type="radio" name="dm-mode" value="commit" onchange="dmModeChange()">
+          <div class="dm-opt-inner">
+            <div class="dm-opt-title">Commit SHA</div>
+            <div class="dm-opt-desc">Pin to an exact commit</div>
+          </div>
+        </label>
+        <label class="dm-opt" id="dm-opt-pr">
+          <input type="radio" name="dm-mode" value="pr" onchange="dmModeChange()">
+          <div class="dm-opt-inner">
+            <div class="dm-opt-title">Pull Request</div>
+            <div class="dm-opt-desc">Test an open PR</div>
+          </div>
+        </label>
+        <label class="dm-opt" id="dm-opt-reset">
+          <input type="radio" name="dm-mode" value="reset" onchange="dmModeChange()">
+          <div class="dm-opt-inner">
+            <div class="dm-opt-title">Reset</div>
+            <div class="dm-opt-desc">Revert to original ref</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- Dynamic input -->
+    <div id="dm-input-row" class="form-row" style="display:none">
+      <label class="form-label" id="dm-input-label">Value</label>
+      <input class="ep-input" id="dm-input-val" placeholder="">
+    </div>
+
+    <div class="form-row" style="display:flex;align-items:center;gap:0.6rem">
+      <input type="checkbox" id="dm-start" checked>
+      <label for="dm-start" style="font-size:0.78rem;color:#aaa;cursor:pointer">Start instance after deploy</label>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeDeploy()">Cancel</button>
+      <button class="btn-green" onclick="submitDeploy()">⬆ Deploy</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let _nodes = [];
+let _currentHost = null;
+let _currentStatus = null;
+let _modalCb = null;
+
+// ── Tailscale nodes ──────────────────────────────────────────────────────────
+
+async function loadNodes() {
+  const res = await fetch(`${API}/api/nodes`);
+  const { nodes } = await res.json();
+  // only show nodes where comfy-runner responded
+  _nodes = nodes;
+  renderSidebar(nodes);
+}
+
+function renderSidebar(nodes) {
+  const el = document.getElementById('sidebar-nodes');
+  if (!nodes.length) { el.innerHTML = '<div style="padding:0.5rem 1rem;font-size:0.75rem;color:#333">No online nodes</div>'; return; }
+  el.innerHTML = nodes.map(n => {
+    const host = n.dns_name || n.hostname;
+    return `<div class="node-item" id="nav-${esc(host)}" onclick="selectNode('${esc(host)}', '${esc(n.hostname)}')">
+      <span class="dot dot-on"></span>
+      <span>${esc(n.hostname)}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── Select node ──────────────────────────────────────────────────────────────
+
+async function selectNode(host, label) {
+  _currentHost = host;
+  document.querySelectorAll('.node-item').forEach(e => e.classList.remove('active'));
+  const nav = document.getElementById(`nav-${esc(host)}`);
+  if (nav) nav.classList.add('active');
+
+  document.getElementById('page-title').textContent = label;
+  document.getElementById('page-sub').textContent = host;
+  document.getElementById('btn-update').style.display = 'inline-block';
+  document.getElementById('main-content').innerHTML = '<div class="empty"><span class="spinner"></span> Loading status…</div>';
+
+  await loadNodeContent(host);
+}
+
+async function refreshCurrent() {
+  if (_currentHost) await loadNodeContent(_currentHost);
+}
+
+async function loadNodeContent(host) {
+  try {
+    const r = await fetch(`${API}/api/nodes/${encodeURIComponent(host)}/status`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    _currentStatus = await r.json();
+    renderNodePage(host, _currentStatus);
+  } catch (e) {
+    document.getElementById('main-content').innerHTML =
+      `<div class="empty" style="color:#555">No comfy-runner on this node<br><small>${e.message}</small></div>`;
+  }
+}
+
+// ── Render node page ─────────────────────────────────────────────────────────
+
+async function renderNodePage(host, status) {
+  const installations = status.installations || [];
+
+  // fetch /info for all instances in parallel
+  const infos = await Promise.all(installations.map(async inst => {
+    try {
+      const r = await fetch(`${API}/api/proxy/${encodeURIComponent(host)}/${inst.name}/info`);
+      return r.ok ? await r.json() : null;
+    } catch { return null; }
+  }));
+
+  let html = '';
+  html += `<div class="instance-grid">`;
+  for (let i = 0; i < installations.length; i++) {
+    html += renderInstanceCard(host, installations[i], infos[i]);
+  }
+  html += `</div>`;
+
+  if (installations.length) {
+    html += renderEndpointPanel(host, installations);
+  }
+
+  document.getElementById('main-content').innerHTML = html;
+}
+
+function renderInstanceCard(host, inst, info) {
+  const uptime = fmtUptime(inst.uptime_s || 0);
+  const shortCommit = info?.head_commit ? info.head_commit.slice(0, 7) : null;
+  const ref   = info?.comfyui_ref || null;
+  const branch = info?.deployed_branch || null;
+
+  const versionHtml = (ref || shortCommit || branch) ? `
+    <div class="inst-version">
+      ${ref    ? `<span class="ver-tag">${esc(ref)}</span>` : ''}
+      ${branch ? `<span class="ver-branch">⎇ ${esc(branch)}</span>` : ''}
+      ${shortCommit ? `<span class="ver-commit" title="${esc(info.head_commit)}">${esc(shortCommit)}</span>` : ''}
+    </div>` : `<div id="inst-ver-loading-${esc(inst.name)}" class="inst-version" style="color:#333;font-size:0.68rem">loading…</div>`;
+
+  return `
+  <div class="instance-card">
+    <div class="inst-header">
+      <div class="inst-name">
+        <span class="dot ${inst.running ? 'dot-on' : 'dot-off'}"></span>
+        ${esc(inst.name)}
+      </div>
+      <div class="inst-actions">
+        ${inst.running
+          ? `<button class="btn-red btn-sm" onclick="callEndpoint('${host}','POST','/${inst.name}/stop')">■ Stop</button>`
+          : `<button class="btn-green btn-sm" onclick="callEndpoint('${host}','POST','/${inst.name}/start')">▶ Start</button>`}
+        <button class="btn-ghost btn-sm" onclick="callEndpoint('${host}','POST','/${inst.name}/restart')">↺ Restart</button>
+      </div>
+    </div>
+    ${versionHtml}
+    <div class="inst-meta">
+      <span>Port <span class="meta-val">${inst.port}</span></span>
+      <span>Uptime <span class="meta-val">${uptime}</span></span>
+      <span>PID <span class="meta-val">${inst.pid || '–'}</span></span>
+      <span class="badge ${inst.healthy ? 'badge-healthy' : 'badge-unhealthy'}">${inst.healthy ? 'healthy' : 'unhealthy'}</span>
+    </div>
+    <div id="card-resp-${esc(inst.name)}" class="resp-box"></div>
+  </div>`;
+}
+
+// ── Endpoint panel ───────────────────────────────────────────────────────────
+
+const ENDPOINTS = [
+  // Global
+  { section: 'Global', method: 'GET',    path: '/status',       desc: 'Aggregate status' },
+  { section: 'Global', method: 'GET',    path: '/installations',desc: 'List installations' },
+  { section: 'Global', method: 'GET',    path: '/system-info',  desc: 'System & hardware info' },
+  { section: 'Global', method: 'GET',    path: '/jobs',         desc: 'List background jobs' },
+  { section: 'Global', method: 'GET',    path: '/config',       desc: 'View global config' },
+  { section: 'Global', method: 'PUT',    path: '/config',       desc: 'Update global config', hasBody: true },
+  { section: 'Global', method: 'POST',   path: '/deploy',       desc: 'Deploy (default instance)', hasBody: true },
+  { section: 'Global', method: 'POST',   path: '/restart',      desc: 'Restart default instance' },
+  { section: 'Global', method: 'POST',   path: '/stop',         desc: 'Stop default instance' },
+  { section: 'Global', method: 'POST',   path: '/self-update',  desc: 'Update server & restart' },
+  // Per-instance
+  { section: 'Instance', method: 'GET',    path: '/{name}/status',   desc: 'Instance status' },
+  { section: 'Instance', method: 'GET',    path: '/{name}/info',     desc: 'Installation info' },
+  { section: 'Instance', method: 'GET',    path: '/{name}/logs',     desc: 'Get logs' },
+  { section: 'Instance', method: 'GET',    path: '/{name}/logs/sessions', desc: 'List log sessions' },
+  { section: 'Instance', method: 'POST',   path: '/{name}/start',    desc: 'Start' },
+  { section: 'Instance', method: 'POST',   path: '/{name}/stop',     desc: 'Stop' },
+  { section: 'Instance', method: 'POST',   path: '/{name}/restart',  desc: 'Restart' },
+  { section: 'Instance', method: 'POST',   path: '/{name}/deploy',   desc: 'Deploy branch/tag/commit', hasBody: true },
+  { section: 'Instance', method: 'GET',    path: '/{name}/config',   desc: 'View config' },  // removed — no PUT /{name}/config in spec; use global
+  { section: 'Instance', method: 'POST',   path: '/{name}/rename',   desc: 'Rename installation', hasBody: true },
+  { section: 'Instance', method: 'DELETE', path: '/{name}',          desc: 'Remove installation' },
+  // Nodes
+  { section: 'Nodes', method: 'GET',    path: '/{name}/nodes',    desc: 'List custom nodes' },
+  { section: 'Nodes', method: 'POST',   path: '/{name}/nodes',    desc: 'Custom node action', hasBody: true },
+  // Models
+  { section: 'Models', method: 'POST',   path: '/{name}/download-model',  desc: 'Download a model', hasBody: true },
+  { section: 'Models', method: 'POST',   path: '/{name}/move-model',      desc: 'Move/copy a model', hasBody: true },
+  { section: 'Models', method: 'POST',   path: '/{name}/upload-model',    desc: 'Upload model file', hasBody: true },
+  { section: 'Models', method: 'GET',    path: '/{name}/upload-model/status', desc: 'Upload status' },
+  // Outputs
+  { section: 'Outputs', method: 'GET',   path: '/{name}/outputs',  desc: 'List output files' },
+  // Snapshot
+  { section: 'Snapshot', method: 'GET',    path: '/{name}/snapshot',         desc: 'List snapshots' },
+  { section: 'Snapshot', method: 'POST',   path: '/{name}/snapshot/save',    desc: 'Capture snapshot' },
+  { section: 'Snapshot', method: 'POST',   path: '/{name}/snapshot/restore', desc: 'Restore snapshot', hasBody: true },
+  { section: 'Snapshot', method: 'POST',   path: '/{name}/snapshot/import',  desc: 'Import & restore', hasBody: true },
+  // Jobs
+  { section: 'Jobs', method: 'GET',    path: '/job/{job_id}',        desc: 'Poll job', pathParams: ['job_id'] },
+  { section: 'Jobs', method: 'POST',   path: '/job/{job_id}/cancel', desc: 'Cancel job', pathParams: ['job_id'] },
+];
+
+function renderEndpointPanel(host, installations) {
+  const instNames = installations.map(i => i.name);
+  const sections = [...new Set(ENDPOINTS.map(e => e.section))];
+
+  const tabsHtml = sections.map((s, i) =>
+    `<div class="tab ${i===0?'active':''}" onclick="switchTab('${s}')">${s}</div>`
+  ).join('');
+
+  const contentHtml = sections.map((s, i) => {
+    const eps = ENDPOINTS.filter(e => e.section === s);
+    return `<div class="tab-content ${i===0?'active':''}" id="tab-${s}">
+      <div class="ep-section">
+        ${eps.map(ep => renderEpRow(host, ep, instNames)).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+  <div style="background:#131313;border:1px solid #1e1e1e;border-radius:10px;padding:1.1rem 1.25rem">
+    <div style="font-size:0.8rem;font-weight:600;color:#fff;margin-bottom:1rem">Endpoints</div>
+    <div class="tabs">${tabsHtml}</div>
+    <div id="ep-resp" class="resp-box" style="margin-bottom:1rem"></div>
+    ${contentHtml}
+  </div>`;
+}
+
+function renderEpRow(host, ep, instNames) {
+  const needsName = ep.path.includes('{name}');
+  const needsJob  = ep.path.includes('{job_id}');
+  const pathId    = `path-${esc(ep.path.replace(/\//g,'-').replace(/[{}]/g,''))}`;
+
+  let controlHtml = '';
+  if (needsName) {
+    const opts = instNames.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    controlHtml = `<select class="ep-input" id="sel-${pathId}" style="width:110px">${opts}</select>`;
+  } else if (needsJob) {
+    controlHtml = `<input class="ep-input" id="inp-${pathId}" placeholder="job_id" style="width:110px">`;
+  }
+
+  const runBtn = `<button class="btn-ghost btn-sm" onclick="runEp('${host}','${ep.method}','${ep.path}','${pathId}',${!!ep.hasBody})">Run</button>`;
+
+  return `<div class="ep-row">
+    <span class="method-badge m-${ep.method.toLowerCase()}">${ep.method}</span>
+    <span class="ep-path">${esc(ep.path)}</span>
+    <span class="ep-desc">${esc(ep.desc)}</span>
+    <div class="ep-btn-group">
+      ${controlHtml}
+      ${runBtn}
+    </div>
+  </div>`;
+}
+
+function switchTab(section) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.textContent === section));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.toggle('active', t.id === `tab-${section}`));
+}
+
+// ── Call endpoint ────────────────────────────────────────────────────────────
+
+function runEp(host, method, pathTpl, pathId, hasBody) {
+  let resolvedPath = pathTpl;
+
+  if (pathTpl.includes('{name}')) {
+    const sel = document.getElementById(`sel-${pathId}`);
+    if (sel) resolvedPath = resolvedPath.replace('{name}', sel.value);
+  }
+  if (pathTpl.includes('{job_id}')) {
+    const inp = document.getElementById(`inp-${pathId}`);
+    if (inp) resolvedPath = resolvedPath.replace('{job_id}', inp.value.trim() || 'unknown');
+  }
+
+  if (hasBody && resolvedPath.endsWith('/deploy')) {
+    // extract instance name from path
+    const instName = resolvedPath.split('/')[1] || '';
+    openDeploy(host, resolvedPath, instName);
+  } else if (hasBody && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+    openModal(host, method, resolvedPath);
+  } else {
+    callEndpoint(host, method, resolvedPath);
+  }
+}
+
+async function callEndpoint(host, method, path, body = null) {
+  const proxyPath = `${API}/api/proxy/${encodeURIComponent(host)}${path}`;
+  const opts = { method };
+  if (body) {
+    opts.headers = { 'content-type': 'application/json' };
+    opts.body = typeof body === 'string' ? body : JSON.stringify(body);
+  }
+
+  // show loading
+  showResp('…', false);
+
+  try {
+    const r = await fetch(proxyPath, opts);
+    const text = await r.text();
+    let pretty;
+    try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch { pretty = text; }
+    showResp(pretty, !r.ok);
+    // refresh instances if it was a lifecycle call
+    if (['start','stop','restart','deploy'].some(k => path.includes(k))) {
+      setTimeout(() => refreshCurrent(), 2000);
+    }
+  } catch (e) {
+    showResp(`Error: ${e.message}`, true);
+  }
+}
+
+function showResp(text, isError) {
+  const box = document.getElementById('ep-resp');
+  if (!box) return;
+  box.textContent = text;
+  box.className = `resp-box visible${isError ? ' resp-error' : ''}`;
+  box.scrollTop = box.scrollHeight;
+}
+
+// ── Self update ──────────────────────────────────────────────────────────────
+
+async function doSelfUpdate() {
+  if (!_currentHost) return;
+  const btn = document.getElementById('btn-update');
+  btn.disabled = true; btn.textContent = '⏳ Updating…';
+  await callEndpoint(_currentHost, 'POST', '/self-update');
+  btn.disabled = false; btn.textContent = '⬆ Self-update';
+  setTimeout(() => refreshCurrent(), 4000);
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+
+function openModal(host, method, path) {
+  document.getElementById('modal-title').textContent = `${method} ${path}`;
+  document.getElementById('modal-path-preview').value = path;
+  document.getElementById('modal-body').value = '{}';
+  _modalCb = () => {
+    const body = document.getElementById('modal-body').value.trim() || '{}';
+    callEndpoint(host, method, path, body);
+  };
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+function submitModal() {
+  closeModal();
+  if (_modalCb) _modalCb();
+}
+
+// ── Deploy modal ─────────────────────────────────────────────────────────────
+
+let _deployHost = null;
+let _deployPath = null;
+
+const DM_INPUTS = {
+  branch: { label: 'Branch name', placeholder: 'e.g. main' },
+  tag:    { label: 'Tag / version', placeholder: 'e.g. v0.3.27' },
+  commit: { label: 'Commit SHA', placeholder: 'e.g. a1b2c3d' },
+  pr:     { label: 'PR number', placeholder: 'e.g. 1234' },
+};
+
+function openDeploy(host, path, instName) {
+  _deployHost = host;
+  _deployPath = path;
+  document.getElementById('dm-instance').textContent = instName || '(default)';
+  // reset to latest
+  document.querySelector('input[name="dm-mode"][value="latest"]').checked = true;
+  dmModeChange();
+  document.getElementById('deploy-modal').classList.add('open');
+}
+
+function closeDeploy() { document.getElementById('deploy-modal').classList.remove('open'); }
+
+function dmModeChange() {
+  const mode = document.querySelector('input[name="dm-mode"]:checked')?.value;
+  const inputRow = document.getElementById('dm-input-row');
+  const cfg = DM_INPUTS[mode];
+  if (cfg) {
+    document.getElementById('dm-input-label').textContent = cfg.label;
+    document.getElementById('dm-input-val').placeholder = cfg.placeholder;
+    document.getElementById('dm-input-val').value = '';
+    inputRow.style.display = 'block';
+  } else {
+    inputRow.style.display = 'none';
+  }
+}
+
+function submitDeploy() {
+  const mode = document.querySelector('input[name="dm-mode"]:checked')?.value;
+  const val  = document.getElementById('dm-input-val').value.trim();
+  const start = document.getElementById('dm-start').checked;
+
+  const body = { start };
+  if (mode === 'latest') { body.latest = true; }
+  else if (mode === 'pull')   { body.pull = true; }
+  else if (mode === 'reset')  { body.reset = true; }
+  else if (mode === 'branch') { body.branch = val || 'main'; }
+  else if (mode === 'tag')    { body.tag = val; }
+  else if (mode === 'commit') { body.commit = val; }
+  else if (mode === 'pr')     { body.pr = parseInt(val) || 0; }
+
+  closeDeploy();
+  callEndpoint(_deployHost, 'POST', _deployPath, JSON.stringify(body));
+}
+
+document.getElementById('deploy-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeDeploy();
+});
+
+// ── Utils ────────────────────────────────────────────────────────────────────
+
+function fmtUptime(s) {
+  if (s < 60) return `${Math.round(s)}s`;
+  if (s < 3600) return `${Math.round(s/60)}m`;
+  if (s < 86400) return `${(s/3600).toFixed(1)}h`;
+  return `${(s/86400).toFixed(1)}d`;
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// close modal on overlay click
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadNodes();
+</script>
+</body>
+</html>
