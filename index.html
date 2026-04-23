@@ -256,7 +256,8 @@ button:not(:disabled):hover { opacity: 0.82; }
     </div>
     <div style="display:flex;gap:0.5rem">
       <button class="btn-ghost" onclick="refreshCurrent()">↻ Refresh</button>
-      <button class="btn-green" id="btn-update" onclick="doSelfUpdate()" style="display:none">⬆ Self-update</button>
+      <button class="btn-green" id="btn-update" onclick="doSelfUpdate(false)" style="display:none">⬆ Self-update</button>
+      <button class="btn-red" id="btn-update-force" onclick="doSelfUpdate(true)" style="display:none" title="Force reset --hard to origin/main">⬆ Force-update</button>
     </div>
   </div>
 
@@ -406,6 +407,7 @@ async function selectNode(host, label) {
   document.getElementById('page-title').textContent = label;
   document.getElementById('page-sub').textContent = host;
   document.getElementById('btn-update').style.display = 'inline-block';
+  document.getElementById('btn-update-force').style.display = 'inline-block';
   document.getElementById('main-content').innerHTML = '<div class="empty"><span class="spinner"></span> Loading status…</div>';
 
   await loadNodeContent(host);
@@ -505,18 +507,20 @@ const ENDPOINTS = [
   { section: 'Global', method: 'POST',   path: '/deploy',       desc: 'Deploy (default instance)', hasBody: true },
   { section: 'Global', method: 'POST',   path: '/restart',      desc: 'Restart default instance' },
   { section: 'Global', method: 'POST',   path: '/stop',         desc: 'Stop default instance' },
-  { section: 'Global', method: 'POST',   path: '/self-update',  desc: 'Update server & restart' },
+  { section: 'Global', method: 'POST',   path: '/self-update',  desc: 'Update server & restart', hasBody: true },
   // Per-instance
   { section: 'Instance', method: 'GET',    path: '/{name}/status',   desc: 'Instance status' },
   { section: 'Instance', method: 'GET',    path: '/{name}/info',     desc: 'Installation info' },
   { section: 'Instance', method: 'GET',    path: '/{name}/logs',     desc: 'Get logs' },
   { section: 'Instance', method: 'GET',    path: '/{name}/logs/sessions', desc: 'List log sessions' },
-  { section: 'Instance', method: 'POST',   path: '/{name}/start',    desc: 'Start' },
+  { section: 'Instance', method: 'POST',   path: '/{name}/start',    desc: 'Start', hasBody: true },
   { section: 'Instance', method: 'POST',   path: '/{name}/stop',     desc: 'Stop' },
-  { section: 'Instance', method: 'POST',   path: '/{name}/restart',  desc: 'Restart' },
+  { section: 'Instance', method: 'POST',   path: '/{name}/restart',  desc: 'Restart', hasBody: true },
   { section: 'Instance', method: 'POST',   path: '/{name}/deploy',   desc: 'Deploy branch/tag/commit', hasBody: true },
-  { section: 'Instance', method: 'GET',    path: '/{name}/config',   desc: 'View config' },  // removed — no PUT /{name}/config in spec; use global
+  { section: 'Instance', method: 'GET',    path: '/{name}/config',   desc: 'View config' },
+  { section: 'Instance', method: 'PUT',    path: '/{name}/config',   desc: 'Update instance config', hasBody: true },
   { section: 'Instance', method: 'POST',   path: '/{name}/rename',   desc: 'Rename installation', hasBody: true },
+  { section: 'Instance', method: 'POST',   path: '/{name}/unlock',   desc: 'Force-release stuck lock' },
   { section: 'Instance', method: 'DELETE', path: '/{name}',          desc: 'Remove installation' },
   // Nodes
   { section: 'Nodes', method: 'GET',    path: '/{name}/nodes',    desc: 'List custom nodes' },
@@ -656,12 +660,13 @@ function showResp(text, isError) {
 
 // ── Self update ──────────────────────────────────────────────────────────────
 
-async function doSelfUpdate() {
+async function doSelfUpdate(force = false) {
   if (!_currentHost) return;
-  const btn = document.getElementById('btn-update');
+  if (force && !confirm('Force-update will run git reset --hard, discarding any local changes. Continue?')) return;
+  const btn = document.getElementById(force ? 'btn-update-force' : 'btn-update');
   btn.disabled = true; btn.textContent = '⏳ Updating…';
-  await callEndpoint(_currentHost, 'POST', '/self-update');
-  btn.disabled = false; btn.textContent = '⬆ Self-update';
+  await callEndpoint(_currentHost, 'POST', '/self-update', JSON.stringify({ force }));
+  btn.disabled = false; btn.textContent = force ? '⬆ Force-update' : '⬆ Self-update';
   setTimeout(() => refreshCurrent(), 4000);
 }
 
