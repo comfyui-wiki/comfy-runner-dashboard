@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>comfy-runner dashboard</title>
+<link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">⬡</div>
+    <div>
+      <div class="sidebar-brand">comfy-runner</div>
+    </div>
+  </div>
+  <div id="sidebar-nodes">
+    <div style="padding:1rem;font-size:0.72rem;color:#333;text-align:center">Loading…</div>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <div class="page-header">
+    <div class="page-title-wrap">
+      <div class="page-title" id="page-title">Select a node</div>
+      <div class="page-host" id="page-sub">–</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn-ghost" onclick="refreshCurrent()">↻ Refresh</button>
+      <button class="btn-green" id="btn-update" onclick="doSelfUpdate(false)" style="display:none">⬆ Self-update</button>
+      <button class="btn-danger" id="btn-update-force" onclick="doSelfUpdate(true)" style="display:none" title="Force reset --hard to origin/main">⬆ Force-update</button>
+    </div>
+  </div>
+
+  <div id="main-content">
+    <div class="empty">← Select a node from the sidebar</div>
+  </div>
+</div>
+
+<!-- Generic modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">Call endpoint</div>
+    <div class="form-row">
+      <label class="form-label">Path</label>
+      <input class="ep-input" id="modal-path-preview" readonly style="color:#555">
+    </div>
+    <div class="form-row" id="modal-body-row">
+      <label class="form-label">Request body (JSON)</label>
+      <textarea class="json-editor" id="modal-body" placeholder="{}"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn-blue" onclick="submitModal()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Model modal -->
+<div class="modal-overlay" id="model-modal">
+  <div class="modal" style="width:500px">
+    <div class="modal-title">Models</div>
+    <div style="font-size:0.75rem;color:#555;margin-bottom:1rem">
+      Instance: <span id="mm-instance" style="color:#aaa"></span>
+    </div>
+
+    <div class="mm-tabs">
+      <div class="mm-tab active" onclick="mmSwitchTab('download')">⬇ Download from URL</div>
+      <div class="mm-tab" onclick="mmSwitchTab('upload')">⬆ Upload file</div>
+    </div>
+
+    <!-- Download pane -->
+    <div class="mm-pane active" id="mm-pane-download">
+      <div class="form-row">
+        <label class="form-label">Model URL <span style="color:#555">(direct download link)</span></label>
+        <input class="ep-input" id="mm-url" placeholder="https://huggingface.co/.../model.safetensors">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Directory</label>
+        <input class="ep-input" id="mm-dl-dir" placeholder="checkpoints">
+        <div class="dir-pills" id="mm-dl-dir-pills"></div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Filename <span style="color:#555">(optional, auto-detected from URL)</span></label>
+        <input class="ep-input" id="mm-dl-name" placeholder="leave blank to auto-detect">
+      </div>
+      <div class="form-row">
+        <label class="form-label">HuggingFace token <span style="color:#555">(optional, for private models)</span></label>
+        <input class="ep-input" id="mm-dl-token" type="password" placeholder="hf_…">
+      </div>
+      <div id="mm-dl-resp" class="resp-box" style="margin-top:0.75rem"></div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="closeModelModal()">Cancel</button>
+        <button class="btn-green" id="mm-dl-btn" onclick="submitDownload()">⬇ Download</button>
+      </div>
+    </div>
+
+    <!-- Upload pane -->
+    <div class="mm-pane" id="mm-pane-upload">
+      <div class="form-row">
+        <label class="form-label">File</label>
+        <div class="drop-zone" id="mm-drop-zone" onclick="document.getElementById('mm-file-input').click()">
+          Click to select or drag & drop a model file
+        </div>
+        <input type="file" id="mm-file-input" style="display:none" onchange="mmFileSelected(this)">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Directory</label>
+        <input class="ep-input" id="mm-ul-dir" placeholder="checkpoints">
+        <div class="dir-pills" id="mm-ul-dir-pills"></div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Filename <span style="color:#555">(optional, uses original name)</span></label>
+        <input class="ep-input" id="mm-ul-name" placeholder="leave blank to use original filename">
+      </div>
+      <div class="progress-bar-wrap" id="mm-progress-wrap">
+        <div class="progress-bar-fill" id="mm-progress-fill"></div>
+      </div>
+      <div id="mm-ul-resp" class="resp-box" style="margin-top:0.75rem"></div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="closeModelModal()">Cancel</button>
+        <button class="btn-blue" id="mm-ul-btn" onclick="submitUpload()">⬆ Upload</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Deploy modal -->
+<div class="modal-overlay" id="deploy-modal">
+  <div class="modal" style="width:480px">
+    <div class="modal-title">Deploy ComfyUI</div>
+    <div style="font-size:0.75rem;color:#555;margin-bottom:1rem">
+      Instance: <span id="dm-instance" style="color:#aaa"></span>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">What to deploy</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem">
+        <label class="dm-opt">
+          <input type="radio" name="dm-mode" value="latest" checked onchange="dmModeChange()">
+          <div class="dm-opt-inner">
+            <div class="dm-opt-title">Latest release</div>
+            <div class="dm-opt-desc">Update to newest stable ComfyUI release</div>
+          </div>
+        </label>
+        <label class="dm-opt">
+          <input type="radio" name="dm-mode" value="pull" onchange="dmModeChange()">
+          <div class="dm-opt-inner">
+            <div class="dm-opt-title">Pull current branch</div>
+            <div class="dm-opt-desc">Fetch latest commits on tracked branch</div>
+          </div>
+        </label>
+        <label class="dm-opt">
+          <input type="radio" name="dm-mode" value="branch" onchange="dmModeChange()">
+          <div class="dm-opt-inner">
+            <div class="dm-opt-title">Branch</div>
+            <div class="dm-opt-desc">Switch to a specific branch</div>
+          </div>
+        </label>
+        <label class="dm-opt">
+          <input type="radio" name="dm-mode" value="tag" onchange="dmModeChange()">
+          <div class="dm-opt-inner">
+            <div class="dm-opt-title">Tag / release</div>
+            <div class="dm-opt-desc">Pin to a specific git tag</div>
+          </div>
+        </label>
+        <label class="dm-opt">
+          <input type="radio" name="dm-mode" value="commit" onchange="dmModeChange()">
+          <div class="dm-opt-inner">
+            <div class="dm-opt-title">Commit SHA</div>
+            <div class="dm-opt-desc">Pin to an exact commit</div>
+          </div>
+        </label>
+        <label class="dm-opt">
+          <input type="radio" name="dm-mode" value="pr" onchange="dmModeChange()">
+          <div class="dm-opt-inner">
+            <div class="dm-opt-title">Pull Request</div>
+            <div class="dm-opt-desc">Test an open PR</div>
+          </div>
+        </label>
+        <label class="dm-opt">
+          <input type="radio" name="dm-mode" value="reset" onchange="dmModeChange()">
+          <div class="dm-opt-inner">
+            <div class="dm-opt-title">Reset</div>
+            <div class="dm-opt-desc">Revert to original ref</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div id="dm-input-row" class="form-row" style="display:none">
+      <label class="form-label" id="dm-input-label">Value</label>
+      <input class="ep-input" id="dm-input-val" placeholder="">
+    </div>
+
+    <div class="form-row" style="display:flex;align-items:center;gap:0.6rem">
+      <input type="checkbox" id="dm-start" checked>
+      <label for="dm-start" style="font-size:0.78rem;color:#aaa;cursor:pointer">Start instance after deploy</label>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeDeploy()">Cancel</button>
+      <button class="btn-green" onclick="submitDeploy()">⬆ Deploy</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="/static/js/app.js"></script>
+</body>
+</html>

@@ -9,6 +9,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="comfy-runner dashboard")
 
@@ -18,6 +19,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+_static_dir = Path(__file__).parent / "static"
+app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
 COMFY_RUNNER_PORT = 9189
 TIMEOUT = 30
@@ -79,7 +83,7 @@ def _tailscale_nodes() -> list[dict]:
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
-    return HTMLResponse((Path(__file__).parent / "index.html").read_text())
+    return HTMLResponse((_static_dir / "index.html").read_text())
 
 
 @app.get("/api/nodes")

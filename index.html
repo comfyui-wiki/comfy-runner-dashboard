@@ -235,6 +235,45 @@ button:not(:disabled):hover { opacity: 0.82; }
 .dm-opt-inner { flex: 1; }
 .dm-opt-title { font-size: 0.78rem; font-weight: 600; color: #ddd; }
 .dm-opt-desc  { font-size: 0.68rem; color: #555; margin-top: 0.1rem; }
+
+/* Model modal tabs */
+.mm-tabs { display: flex; gap: 0; border-bottom: 1px solid #2a2a2a; margin-bottom: 1.25rem; }
+.mm-tab {
+  padding: 0.45rem 1rem; font-size: 0.8rem; color: #555; cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.mm-tab:hover { color: #aaa; }
+.mm-tab.active { color: #fff; border-bottom-color: #3b82f6; }
+.mm-pane { display: none; }
+.mm-pane.active { display: block; }
+
+/* Directory pills */
+.dir-pills { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.4rem; }
+.dir-pill {
+  font-size: 0.68rem; padding: 0.15rem 0.55rem; border-radius: 99px;
+  background: #1e1e1e; border: 1px solid #2a2a2a; color: #777;
+  cursor: pointer; transition: all 0.1s;
+}
+.dir-pill:hover { border-color: #3b82f6; color: #93c5fd; }
+.dir-pill.selected { background: #1e3a5f; border-color: #3b82f6; color: #93c5fd; }
+
+/* Upload drop zone */
+.drop-zone {
+  border: 2px dashed #2a2a2a; border-radius: 8px;
+  padding: 1.5rem; text-align: center; cursor: pointer;
+  transition: all 0.15s; color: #444; font-size: 0.78rem;
+  margin-top: 0.4rem;
+}
+.drop-zone:hover, .drop-zone.drag-over { border-color: #3b82f6; color: #93c5fd; background: #0f1e38; }
+.drop-zone.has-file { border-color: #16a34a; color: #86efac; background: #0a1f0a; }
+
+/* Progress bar */
+.progress-bar-wrap {
+  background: #1a1a1a; border-radius: 4px; height: 6px;
+  overflow: hidden; margin-top: 0.5rem; display: none;
+}
+.progress-bar-fill { height: 100%; background: #3b82f6; width: 0%; transition: width 0.3s; }
+.progress-bar-wrap.visible { display: block; }
 </style>
 </head>
 <body>
@@ -281,6 +320,75 @@ button:not(:disabled):hover { opacity: 0.82; }
     <div class="modal-footer">
       <button class="btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn-blue" onclick="submitModal()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Model modal -->
+<div class="modal-overlay" id="model-modal">
+  <div class="modal" style="width:500px">
+    <div class="modal-title">Models</div>
+    <div style="font-size:0.75rem;color:#555;margin-bottom:1rem">
+      Instance: <span id="mm-instance" style="color:#aaa"></span>
+    </div>
+
+    <div class="mm-tabs">
+      <div class="mm-tab active" onclick="mmSwitchTab('download')">⬇ Download from URL</div>
+      <div class="mm-tab" onclick="mmSwitchTab('upload')">⬆ Upload file</div>
+    </div>
+
+    <!-- Download pane -->
+    <div class="mm-pane active" id="mm-pane-download">
+      <div class="form-row">
+        <label class="form-label">Model URL <span style="color:#555">(direct download link)</span></label>
+        <input class="ep-input" id="mm-url" placeholder="https://huggingface.co/.../model.safetensors" style="font-size:0.72rem">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Directory</label>
+        <input class="ep-input" id="mm-dl-dir" placeholder="checkpoints">
+        <div class="dir-pills" id="mm-dl-dir-pills"></div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Filename <span style="color:#555">(optional, auto-detected from URL)</span></label>
+        <input class="ep-input" id="mm-dl-name" placeholder="leave blank to auto-detect">
+      </div>
+      <div class="form-row">
+        <label class="form-label">HuggingFace token <span style="color:#555">(optional, for private models)</span></label>
+        <input class="ep-input" id="mm-dl-token" type="password" placeholder="hf_…">
+      </div>
+      <div id="mm-dl-resp" class="resp-box" style="margin-top:0.75rem"></div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="closeModelModal()">Cancel</button>
+        <button class="btn-green" id="mm-dl-btn" onclick="submitDownload()">⬇ Download</button>
+      </div>
+    </div>
+
+    <!-- Upload pane -->
+    <div class="mm-pane" id="mm-pane-upload">
+      <div class="form-row">
+        <label class="form-label">File</label>
+        <div class="drop-zone" id="mm-drop-zone" onclick="document.getElementById('mm-file-input').click()">
+          Click to select or drag & drop a model file
+        </div>
+        <input type="file" id="mm-file-input" style="display:none" onchange="mmFileSelected(this)">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Directory</label>
+        <input class="ep-input" id="mm-ul-dir" placeholder="checkpoints">
+        <div class="dir-pills" id="mm-ul-dir-pills"></div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Filename <span style="color:#555">(optional, uses original name)</span></label>
+        <input class="ep-input" id="mm-ul-name" placeholder="leave blank to use original filename">
+      </div>
+      <div class="progress-bar-wrap" id="mm-progress-wrap">
+        <div class="progress-bar-fill" id="mm-progress-fill"></div>
+      </div>
+      <div id="mm-ul-resp" class="resp-box" style="margin-top:0.75rem"></div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="closeModelModal()">Cancel</button>
+        <button class="btn-blue" id="mm-ul-btn" onclick="submitUpload()">⬆ Upload</button>
+      </div>
     </div>
   </div>
 </div>
@@ -481,6 +589,8 @@ function renderInstanceCard(host, inst, info) {
           ? `<button class="btn-red btn-sm" onclick="callEndpoint('${host}','POST','/${inst.name}/stop')">■ Stop</button>`
           : `<button class="btn-green btn-sm" onclick="callEndpoint('${host}','POST','/${inst.name}/start')">▶ Start</button>`}
         <button class="btn-ghost btn-sm" onclick="callEndpoint('${host}','POST','/${inst.name}/restart')">↺ Restart</button>
+        <button class="btn-ghost btn-sm" onclick="openDeploy('${host}','/${inst.name}/deploy','${inst.name}')">⬆ Deploy</button>
+        <button class="btn-ghost btn-sm" onclick="openModelModal('${host}','${inst.name}','download')">📦 Models</button>
       </div>
     </div>
     ${versionHtml}
@@ -614,9 +724,12 @@ function runEp(host, method, pathTpl, pathId, hasBody) {
   }
 
   if (hasBody && resolvedPath.endsWith('/deploy')) {
-    // extract instance name from path
     const instName = resolvedPath.split('/')[1] || '';
     openDeploy(host, resolvedPath, instName);
+  } else if (hasBody && (resolvedPath.endsWith('/download-model') || resolvedPath.endsWith('/upload-model'))) {
+    const instName = resolvedPath.split('/')[1] || '';
+    const tab = resolvedPath.endsWith('/upload-model') ? 'upload' : 'download';
+    openModelModal(host, instName, tab);
   } else if (hasBody && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
     openModal(host, method, resolvedPath);
   } else {
@@ -689,6 +802,214 @@ function submitModal() {
   closeModal();
   if (_modalCb) _modalCb();
 }
+
+// ── Model modal ───────────────────────────────────────────────────────────────
+
+const MODEL_DIRS = ['checkpoints','loras','vae','controlnet','upscale_models','clip','clip_vision','embeddings','hypernetworks','ipadapter','unet'];
+
+let _mmHost = null;
+let _mmInst = null;
+let _mmFile = null;
+
+function openModelModal(host, instName, tab = 'download') {
+  _mmHost = host;
+  _mmInst = instName;
+  _mmFile = null;
+  document.getElementById('mm-instance').textContent = instName;
+  // reset fields
+  ['mm-url','mm-dl-dir','mm-dl-name','mm-dl-token','mm-ul-dir','mm-ul-name'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('mm-drop-zone').textContent = 'Click to select or drag & drop a model file';
+  document.getElementById('mm-drop-zone').className = 'drop-zone';
+  document.getElementById('mm-file-input').value = '';
+  document.getElementById('mm-progress-wrap').classList.remove('visible');
+  document.getElementById('mm-progress-fill').style.width = '0%';
+  ['mm-dl-resp','mm-ul-resp'].forEach(id => {
+    const el = document.getElementById(id);
+    el.className = 'resp-box'; el.textContent = '';
+  });
+  // render dir pills
+  ['mm-dl-dir-pills','mm-ul-dir-pills'].forEach((pillsId, i) => {
+    const dirInputId = i === 0 ? 'mm-dl-dir' : 'mm-ul-dir';
+    document.getElementById(pillsId).innerHTML = MODEL_DIRS.map(d =>
+      `<span class="dir-pill" onclick="mmSelectDir('${pillsId}','${dirInputId}','${d}')">${d}</span>`
+    ).join('');
+  });
+  mmSwitchTab(tab);
+  document.getElementById('model-modal').classList.add('open');
+}
+
+function closeModelModal() {
+  document.getElementById('model-modal').classList.remove('open');
+}
+
+function mmSwitchTab(tab) {
+  document.querySelectorAll('.mm-tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && tab === 'download') || (i === 1 && tab === 'upload'));
+  });
+  document.getElementById('mm-pane-download').classList.toggle('active', tab === 'download');
+  document.getElementById('mm-pane-upload').classList.toggle('active', tab === 'upload');
+}
+
+function mmSelectDir(pillsId, dirInputId, dir) {
+  document.getElementById(dirInputId).value = dir;
+  document.querySelectorAll(`#${pillsId} .dir-pill`).forEach(p => {
+    p.classList.toggle('selected', p.textContent === dir);
+  });
+}
+
+function mmFileSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  _mmFile = file;
+  const zone = document.getElementById('mm-drop-zone');
+  zone.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+  zone.className = 'drop-zone has-file';
+  if (!document.getElementById('mm-ul-name').value) {
+    document.getElementById('mm-ul-name').value = file.name;
+  }
+}
+
+// drag and drop
+document.addEventListener('DOMContentLoaded', () => {
+  const zone = document.getElementById('mm-drop-zone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      _mmFile = file;
+      zone.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+      zone.className = 'drop-zone has-file';
+      if (!document.getElementById('mm-ul-name').value) {
+        document.getElementById('mm-ul-name').value = file.name;
+      }
+    }
+  });
+});
+
+function mmShowResp(pane, text, isError) {
+  const id = pane === 'download' ? 'mm-dl-resp' : 'mm-ul-resp';
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = `resp-box visible${isError ? ' resp-error' : ''}`;
+}
+
+async function submitDownload() {
+  const url   = document.getElementById('mm-url').value.trim();
+  const dir   = document.getElementById('mm-dl-dir').value.trim();
+  const name  = document.getElementById('mm-dl-name').value.trim();
+  const token = document.getElementById('mm-dl-token').value.trim();
+
+  if (!url)  { mmShowResp('download', 'URL is required', true); return; }
+  if (!dir)  { mmShowResp('download', 'Directory is required', true); return; }
+
+  const btn = document.getElementById('mm-dl-btn');
+  btn.disabled = true; btn.textContent = '⏳ Starting…';
+  mmShowResp('download', '…', false);
+
+  const body = { url, directory: dir };
+  if (name)  body.name  = name;
+  if (token) body.token = token;
+
+  try {
+    const r = await fetch(`${API}/api/proxy/${encodeURIComponent(_mmHost)}/${_mmInst}/download-model`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await r.json();
+    if (data.skipped) {
+      mmShowResp('download', `Already exists: ${data.name}`, false);
+    } else if (data.job_id) {
+      mmShowResp('download', `Download started (job ${data.job_id})\nPolling progress…`, false);
+      pollJob(data.job_id, 'download');
+    } else {
+      mmShowResp('download', JSON.stringify(data, null, 2), !r.ok);
+    }
+  } catch (e) {
+    mmShowResp('download', `Error: ${e.message}`, true);
+  } finally {
+    btn.disabled = false; btn.textContent = '⬇ Download';
+  }
+}
+
+async function pollJob(jobId, pane) {
+  for (let i = 0; i < 300; i++) {
+    await new Promise(r => setTimeout(r, 2000));
+    try {
+      const r = await fetch(`${API}/api/proxy/${encodeURIComponent(_mmHost)}/job/${jobId}`);
+      const data = await r.json();
+      const status = data.status || '';
+      const lines = (data.output_lines || []).slice(-3).join('\n');
+      if (status === 'done') {
+        mmShowResp(pane, `Done!\n${lines}`, false);
+        return;
+      } else if (status === 'failed') {
+        mmShowResp(pane, `Failed: ${data.error || ''}\n${lines}`, true);
+        return;
+      } else {
+        mmShowResp(pane, `[${status}] ${lines || '…'}`, false);
+      }
+    } catch { break; }
+  }
+}
+
+async function submitUpload() {
+  if (!_mmFile) { mmShowResp('upload', 'Please select a file', true); return; }
+  const dir  = document.getElementById('mm-ul-dir').value.trim();
+  const name = document.getElementById('mm-ul-name').value.trim() || _mmFile.name;
+  if (!dir)  { mmShowResp('upload', 'Directory is required', true); return; }
+
+  const btn = document.getElementById('mm-ul-btn');
+  btn.disabled = true; btn.textContent = '⏳ Uploading…';
+
+  const progressWrap = document.getElementById('mm-progress-wrap');
+  const progressFill = document.getElementById('mm-progress-fill');
+  progressWrap.classList.add('visible');
+  progressFill.style.width = '0%';
+
+  const form = new FormData();
+  form.append('file', _mmFile, name);
+  form.append('directory', dir);
+  form.append('name', name);
+
+  try {
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API}/api/proxy/${encodeURIComponent(_mmHost)}/${_mmInst}/upload-model`);
+      xhr.upload.onprogress = e => {
+        if (e.lengthComputable) {
+          const pct = Math.round(e.loaded / e.total * 100);
+          progressFill.style.width = `${pct}%`;
+          mmShowResp('upload', `Uploading… ${pct}%`, false);
+        }
+      };
+      xhr.onload = () => {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          if (data.ok) {
+            mmShowResp('upload', `Upload complete: ${name}`, false);
+            progressFill.style.width = '100%';
+          } else {
+            mmShowResp('upload', `Error: ${data.error || xhr.responseText}`, true);
+          }
+        } catch { mmShowResp('upload', xhr.responseText, xhr.status >= 400); }
+        resolve();
+      };
+      xhr.onerror = () => { mmShowResp('upload', 'Network error', true); reject(); };
+      xhr.send(form);
+    });
+  } finally {
+    btn.disabled = false; btn.textContent = '⬆ Upload';
+  }
+}
+
+document.getElementById('model-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModelModal();
+});
 
 // ── Deploy modal ─────────────────────────────────────────────────────────────
 
