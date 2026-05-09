@@ -84,7 +84,12 @@ No bundler, no transpiler, no framework. Modules are loaded by `<script type="mo
 
 ### The endpoints catalog
 
-`endpoints.js` has a single source of truth — the `ENDPOINTS` array — listing every comfy-runner API the UI exposes (Global / Instance / Nodes / Models / Outputs / Snapshot / Jobs sections). Each entry: `{ section, method, path, desc, hasBody?, pathParams? }`. `{name}` and `{job_id}` placeholders are resolved at click time from the row's select/input.
+`endpoints.js` has a single source of truth — the `ENDPOINTS` array — listing every comfy-runner API the UI exposes (Global / Instance / Nodes / Models / Outputs / Snapshot / Jobs sections). Each entry: `{ section, method, path, desc, hasBody?, pathParams? }`.
+
+**Placeholder rules**: Anything matching `{xxx}` in `path` becomes a UI control on that row.
+- `{name}` → instance dropdown (populated from the host's installations).
+- Any other `{xxx}` (e.g. `{job_id}`, `{snapshot_id}`, `{other_id}`) → free-text input with `xxx` as placeholder text. The input id is `inp-{pathId}-{xxx}`. At click time the value is substituted in; empty input becomes the literal `unknown_{xxx}` so failures are visible.
+- The optional `pathParams` field is informational only; placeholders are detected from the path string itself.
 
 When comfy-runner ships a new endpoint, the typical change is a one-line addition to `ENDPOINTS`. If the new endpoint needs a custom body UI (e.g. download-model), add a special-case in `runEp()` that opens the right modal instead of the generic JSON editor.
 

@@ -15,6 +15,9 @@ const ENDPOINTS = [
   { section: 'Global', method: 'POST',   path: '/restart',       desc: 'Restart default instance' },
   { section: 'Global', method: 'POST',   path: '/stop',          desc: 'Stop default instance' },
   { section: 'Global', method: 'POST',   path: '/self-update',   desc: 'Update server & restart', hasBody: true },
+  { section: 'Global', method: 'GET',    path: '/startup-log',   desc: 'Tail server startup log (?lines=N)' },
+  { section: 'Global', method: 'GET',    path: '/tailnet/runners', desc: 'Auto-discover comfy-runners on tailnet' },
+  { section: 'Global', method: 'POST',   path: '/pods/self-update', desc: 'Fan out self-update across tailnet', hasBody: true },
   // Instance
   { section: 'Instance', method: 'GET',    path: '/{name}/status',        desc: 'Instance status' },
   { section: 'Instance', method: 'GET',    path: '/{name}/info',          desc: 'Installation info' },
@@ -29,21 +32,29 @@ const ENDPOINTS = [
   { section: 'Instance', method: 'POST',   path: '/{name}/rename',        desc: 'Rename installation', hasBody: true },
   { section: 'Instance', method: 'POST',   path: '/{name}/unlock',        desc: 'Force-release stuck lock' },
   { section: 'Instance', method: 'DELETE', path: '/{name}',               desc: 'Remove installation' },
+  { section: 'Instance', method: 'POST',   path: '/{name}/tunnel/start',  desc: 'Start Tailscale tunnel for instance', hasBody: true },
+  { section: 'Instance', method: 'POST',   path: '/{name}/tunnel/stop',   desc: 'Stop Tailscale tunnel for instance' },
   // Nodes
   { section: 'Nodes', method: 'GET',  path: '/{name}/nodes', desc: 'List custom nodes' },
   { section: 'Nodes', method: 'POST', path: '/{name}/nodes', desc: 'Custom node action', hasBody: true },
   // Models
   { section: 'Models', method: 'POST', path: '/{name}/download-model',      desc: 'Download a model', hasBody: true },
   { section: 'Models', method: 'POST', path: '/{name}/move-model',          desc: 'Move/copy a model', hasBody: true },
-  { section: 'Models', method: 'POST', path: '/{name}/upload-model',        desc: 'Upload model file', hasBody: true },
-  { section: 'Models', method: 'GET',  path: '/{name}/upload-model/status', desc: 'Upload status' },
+  { section: 'Models', method: 'POST',   path: '/{name}/upload-model',        desc: 'Upload model file', hasBody: true },
+  { section: 'Models', method: 'GET',    path: '/{name}/upload-model/status', desc: 'Upload status' },
+  { section: 'Models', method: 'DELETE', path: '/{name}/upload-model/status', desc: 'Cancel current upload' },
+  { section: 'Models', method: 'POST',   path: '/{name}/workflow-models',     desc: 'Extract & download models from a workflow JSON', hasBody: true },
   // Outputs
   { section: 'Outputs', method: 'GET', path: '/{name}/outputs', desc: 'List output files' },
   // Snapshot
-  { section: 'Snapshot', method: 'GET',  path: '/{name}/snapshot',         desc: 'List snapshots' },
-  { section: 'Snapshot', method: 'POST', path: '/{name}/snapshot/save',    desc: 'Capture snapshot' },
-  { section: 'Snapshot', method: 'POST', path: '/{name}/snapshot/restore', desc: 'Restore snapshot', hasBody: true },
-  { section: 'Snapshot', method: 'POST', path: '/{name}/snapshot/import',  desc: 'Import & restore', hasBody: true },
+  { section: 'Snapshot', method: 'GET',  path: '/{name}/snapshot',                          desc: 'List snapshots' },
+  { section: 'Snapshot', method: 'POST', path: '/{name}/snapshot/save',                     desc: 'Capture snapshot' },
+  { section: 'Snapshot', method: 'POST', path: '/{name}/snapshot/restore',                  desc: 'Restore snapshot', hasBody: true },
+  { section: 'Snapshot', method: 'POST', path: '/{name}/snapshot/import',                   desc: 'Import & restore', hasBody: true },
+  { section: 'Snapshot', method: 'GET',  path: '/{name}/snapshot/{snapshot_id}',            desc: 'Show snapshot details', pathParams: ['snapshot_id'] },
+  { section: 'Snapshot', method: 'GET',  path: '/{name}/snapshot/{snapshot_id}/diff',       desc: 'Diff snapshot vs current', pathParams: ['snapshot_id'] },
+  { section: 'Snapshot', method: 'GET',  path: '/{name}/snapshot/{snapshot_id}/diff/{other_id}', desc: 'Diff two snapshots', pathParams: ['snapshot_id', 'other_id'] },
+  { section: 'Snapshot', method: 'GET',  path: '/{name}/snapshot/{snapshot_id}/export',     desc: 'Export snapshot to JSON', pathParams: ['snapshot_id'] },
   // Jobs
   { section: 'Jobs', method: 'GET',  path: '/job/{job_id}',        desc: 'Poll job',    pathParams: ['job_id'] },
   { section: 'Jobs', method: 'POST', path: '/job/{job_id}/cancel', desc: 'Cancel job',  pathParams: ['job_id'] },
@@ -160,15 +171,20 @@ function renderEndpointPanel(host, installations) {
 
 function renderEpRow(host, ep, instNames) {
   const needsName = ep.path.includes('{name}');
-  const needsJob  = ep.path.includes('{job_id}');
   const pathId    = `path-${esc(ep.path.replace(/\//g, '-').replace(/[{}]/g, ''))}`;
+
+  // Free-text params: anything in {curlies} that isn't {name}.
+  const freeParams = (ep.path.match(/\{[^}]+\}/g) || [])
+    .map(p => p.slice(1, -1))
+    .filter(p => p !== 'name');
 
   let controlHtml = '';
   if (needsName) {
     const opts = instNames.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
-    controlHtml = `<select class="ep-input" id="sel-${pathId}" style="width:110px">${opts}</select>`;
-  } else if (needsJob) {
-    controlHtml = `<input class="ep-input" id="inp-${pathId}" placeholder="job_id" style="width:110px">`;
+    controlHtml += `<select class="ep-input" id="sel-${pathId}" style="width:110px">${opts}</select>`;
+  }
+  for (const p of freeParams) {
+    controlHtml += `<input class="ep-input" id="inp-${pathId}-${esc(p)}" placeholder="${esc(p)}" style="width:110px">`;
   }
 
   return `<div class="ep-row">
@@ -196,9 +212,14 @@ export function runEp(host, method, pathTpl, pathId, hasBody) {
     const sel = document.getElementById(`sel-${pathId}`);
     if (sel) resolvedPath = resolvedPath.replace('{name}', sel.value);
   }
-  if (pathTpl.includes('{job_id}')) {
-    const inp = document.getElementById(`inp-${pathId}`);
-    if (inp) resolvedPath = resolvedPath.replace('{job_id}', inp.value.trim() || 'unknown');
+  // Resolve any other {placeholder} from free-text inputs.
+  const freeParams = (pathTpl.match(/\{[^}]+\}/g) || [])
+    .map(p => p.slice(1, -1))
+    .filter(p => p !== 'name');
+  for (const p of freeParams) {
+    const inp = document.getElementById(`inp-${pathId}-${p}`);
+    const val = inp ? inp.value.trim() : '';
+    resolvedPath = resolvedPath.replace(`{${p}}`, val || `unknown_${p}`);
   }
 
   if (hasBody && resolvedPath.endsWith('/deploy')) {
