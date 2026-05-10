@@ -187,6 +187,40 @@ button:not(:disabled):active { transform: scale(0.97); }
 }
 .inst-toggle { flex-shrink: 0; }
 
+/* Open / ngrok links in card top row — link-styled, not button-styled */
+.inst-open-links {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  flex-shrink: 0;
+}
+.inst-open-links:empty { display: none; }
+.btn-link {
+  display: inline-flex; align-items: center;
+  padding: 0.18rem 0.5rem;
+  font-size: 0.68rem; font-weight: 500;
+  color: var(--text-2);
+  background: transparent;
+  border: 1px solid var(--border-2);
+  border-radius: 4px;
+  text-decoration: none;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+  white-space: nowrap;
+}
+.btn-link:hover {
+  color: var(--text-1);
+  background: var(--bg-4);
+  border-color: #3a3a3a;
+}
+.btn-link-ngrok {
+  color: #fcd34d;
+  border-color: #78350f;
+  background: #1c1408;
+}
+.btn-link-ngrok:hover {
+  color: #fef3c7;
+  background: #2a1f0a;
+  border-color: #92400e;
+}
+
 /* version row */
 .inst-version {
   display: flex; align-items: center; gap: 0.4rem;

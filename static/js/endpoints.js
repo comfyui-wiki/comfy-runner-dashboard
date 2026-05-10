@@ -88,6 +88,14 @@ function renderInstanceCard(host, inst, info) {
   const shortCommit = info?.head_commit ? info.head_commit.slice(0, 7) : null;
   const ref         = info?.comfyui_ref || null;
   const branch      = info?.deployed_branch || null;
+  const serveUrl    = info?.serve_url  || null;   // Tailscale-served HTTPS URL
+  const tunnelUrl   = info?.tunnel_url || null;   // ngrok / public tunnel URL
+
+  // Open buttons — only shown when the instance is running and the URL exists.
+  const openLinks = inst.running
+    ? `${serveUrl  ? `<a class="btn-link btn-sm" href="${esc(serveUrl)}"  target="_blank" rel="noopener" title="${esc(serveUrl)}">↗ Open</a>`  : ''}
+       ${tunnelUrl ? `<a class="btn-link btn-sm btn-link-ngrok" href="${esc(tunnelUrl)}" target="_blank" rel="noopener" title="${esc(tunnelUrl)}">↗ ngrok</a>` : ''}`
+    : '';
 
   const versionHtml = (ref || shortCommit || branch)
     ? `<div class="inst-version">
@@ -106,6 +114,7 @@ function renderInstanceCard(host, inst, info) {
     <div class="inst-top">
       <span class="inst-status-dot ${inst.running ? 'dot-on' : 'dot-off'}"></span>
       <span class="inst-name">${esc(inst.name)}</span>
+      <span class="inst-open-links">${openLinks}</span>
       <span class="inst-toggle">${toggleBtn}</span>
     </div>
 
