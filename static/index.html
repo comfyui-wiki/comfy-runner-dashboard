@@ -201,6 +201,17 @@
       <label for="dm-start" style="font-size:0.78rem;color:#aaa;cursor:pointer">Start instance after deploy</label>
     </div>
 
+    <div class="form-row" style="display:flex;align-items:flex-start;gap:0.6rem">
+      <input type="checkbox" id="dm-force" style="margin-top:0.2rem">
+      <div>
+        <label for="dm-force" style="font-size:0.78rem;color:#aaa;cursor:pointer">Force (drop dirty changes)</label>
+        <div style="font-size:0.7rem;color:#666;margin-top:0.15rem;line-height:1.35">
+          Default: stash local changes outside the runtime allowlist (styles/, output/, input/, temp/, user/, models/, custom_nodes/) and continue.
+          Force: <code>git reset --hard</code> + <code>git clean -fd</code>, runtime dirs still preserved. Destructive.
+        </div>
+      </div>
+    </div>
+
     <div class="modal-footer">
       <button class="btn-ghost" onclick="closeDeploy()">Cancel</button>
       <button class="btn-green" onclick="submitDeploy()">⬆ Deploy</button>
