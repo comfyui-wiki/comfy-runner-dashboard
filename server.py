@@ -23,6 +23,15 @@ app.add_middleware(
 _static_dir = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
+
+@app.middleware("http")
+async def _no_cache_static(request: Request, call_next):
+    resp = await call_next(request)
+    if request.url.path.startswith("/static/") or request.url.path == "/":
+        resp.headers["Cache-Control"] = "no-store, must-revalidate"
+        resp.headers["Pragma"] = "no-cache"
+    return resp
+
 COMFY_RUNNER_PORT = 9189
 TIMEOUT = 30
 

@@ -3,7 +3,7 @@ import { loadNodes, selectNode, refreshCurrent } from './nodes.js';
 import { switchTab, runEp } from './endpoints.js';
 import { closeModal, submitModal } from './modals/generic.js';
 import { closeDeploy, dmModeChange, submitDeploy, openDeploy } from './modals/deploy.js';
-import { closeModelModal, mmSwitchTab, mmSelectDir, mmFileSelected, submitDownload, submitUpload, openModelModal, initDropZone } from './modals/model.js';
+import { closeModelModal, mmSwitchTab, mmSelectDir, mmDirSelectChange, mmFileSelected, submitDownload, submitUpload, openModelModal, initDropZone } from './modals/model.js';
 
 // ── Expose to HTML onclick handlers ──────────────────────────────────────────
 
@@ -23,9 +23,10 @@ window.submitDeploy    = submitDeploy;
 
 window.openModelModal  = openModelModal;
 window.closeModelModal = closeModelModal;
-window.mmSwitchTab     = mmSwitchTab;
-window.mmSelectDir     = mmSelectDir;
-window.mmFileSelected  = mmFileSelected;
+window.mmSwitchTab        = mmSwitchTab;
+window.mmSelectDir        = mmSelectDir;
+window.mmDirSelectChange  = mmDirSelectChange;
+window.mmFileSelected     = mmFileSelected;
 window.submitDownload  = submitDownload;
 window.submitUpload    = submitUpload;
 

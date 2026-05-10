@@ -80,8 +80,8 @@
       </div>
       <div class="form-row">
         <label class="form-label">Directory</label>
-        <input class="ep-input" id="mm-dl-dir" placeholder="checkpoints">
-        <div class="dir-pills" id="mm-dl-dir-pills"></div>
+        <select class="ep-input" id="mm-dl-dir-select" onchange="window.mmDirSelectChange('download')"></select>
+        <input class="ep-input" id="mm-dl-dir-custom" placeholder="custom folder name (e.g. ipadapter)" style="display:none;margin-top:0.4rem">
       </div>
       <div class="form-row">
         <label class="form-label">Filename <span style="color:#555">(optional, auto-detected from URL)</span></label>
@@ -109,8 +109,8 @@
       </div>
       <div class="form-row">
         <label class="form-label">Directory</label>
-        <input class="ep-input" id="mm-ul-dir" placeholder="checkpoints">
-        <div class="dir-pills" id="mm-ul-dir-pills"></div>
+        <select class="ep-input" id="mm-ul-dir-select" onchange="window.mmDirSelectChange('upload')"></select>
+        <input class="ep-input" id="mm-ul-dir-custom" placeholder="custom folder name (e.g. ipadapter)" style="display:none;margin-top:0.4rem">
       </div>
       <div class="form-row">
         <label class="form-label">Filename <span style="color:#555">(optional, uses original name)</span></label>
