@@ -64,26 +64,60 @@ def _curl(method: str, url: str, body: bytes | None = None, headers: dict | None
     return status_code, body_part, "application/json"
 
 
-def _tailscale_nodes() -> list[dict]:
+def _discover_tailscale_peers() -> dict:
+    """Return {nodes, error, meta} for /api/nodes. `error` is set when tailscale failed; `meta` summarizes Peer counts when JSON parsed."""
+    out: dict = {"nodes": [], "error": None, "meta": None}
     try:
-        out = subprocess.check_output(["tailscale", "status", "--json"], timeout=10)
-        data = json.loads(out)
-    except Exception:
-        return []
+        proc = subprocess.run(
+            ["tailscale", "status", "--json"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except FileNotFoundError:
+        out["error"] = "tailscale CLI not found in PATH"
+        return out
+    except subprocess.TimeoutExpired:
+        out["error"] = "tailscale status timed out after 10s"
+        return out
+    except Exception as e:
+        out["error"] = str(e)
+        return out
 
-    nodes = []
+    if proc.returncode != 0:
+        hint = (proc.stderr or proc.stdout or "").strip()[:800]
+        out["error"] = f"tailscale exited {proc.returncode}" + (f": {hint}" if hint else "")
+        return out
+
+    try:
+        data = json.loads(proc.stdout or "{}")
+    except json.JSONDecodeError as e:
+        out["error"] = f"invalid JSON from tailscale: {e}"
+        return out
+
+    peers = data.get("Peer") or {}
+    if not isinstance(peers, dict):
+        peers = {}
+
+    online_n = sum(1 for p in peers.values() if isinstance(p, dict) and p.get("Online", False))
+    out["meta"] = {
+        "total_peers": len(peers),
+        "online_peers": online_n,
+        "tailnet": data.get("MagicDNSSuffix") or "",
+    }
+
     tailnet = data.get("MagicDNSSuffix", "")
-    for _, peer in data.get("Peer", {}).items():
-        if not peer.get("Online", False):
+    for peer in peers.values():
+        if not isinstance(peer, dict) or not peer.get("Online", False):
             continue
-        nodes.append({
+        out["nodes"].append({
             "hostname": peer.get("HostName", ""),
             "dns_name": peer.get("DNSName", "").rstrip("."),
             "os": peer.get("OS", ""),
             "online": True,
             "tailnet": tailnet,
         })
-    return nodes
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -97,7 +131,7 @@ async def index():
 
 @app.get("/api/nodes")
 async def list_nodes():
-    return {"nodes": _tailscale_nodes()}
+    return _discover_tailscale_peers()
 
 
 @app.get("/api/nodes/{host}/status")

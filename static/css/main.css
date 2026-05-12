@@ -82,6 +82,41 @@ body {
   color: var(--text-3);
 }
 
+.sidebar-diag {
+  padding: 1rem;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--text-2);
+  text-align: left;
+}
+.sidebar-diag-title {
+  display: block;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 0.35rem;
+}
+.sidebar-diag-hint {
+  margin-top: 0.5rem;
+  font-size: 0.65rem;
+  color: var(--text-3);
+  line-height: 1.4;
+}
+.sidebar-diag-err {
+  border-left: 2px solid var(--red);
+  background: rgba(239, 68, 68, 0.06);
+}
+.sidebar-diag-err strong {
+  color: var(--text-1);
+  font-size: 0.68rem;
+}
+.sidebar-diag-msg {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.65rem;
+  color: var(--text-2);
+  word-break: break-word;
+}
+
 .node-item {
   display: flex; align-items: center; gap: 0.55rem;
   padding: 0.45rem 1rem; cursor: pointer;

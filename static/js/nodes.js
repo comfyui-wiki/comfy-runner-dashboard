@@ -6,9 +6,21 @@ let _currentHost = null;
 export function getCurrentHost() { return _currentHost; }
 
 export async function loadNodes() {
-  const res = await fetch(`${API}/api/nodes`);
-  const { nodes } = await res.json();
-  renderSidebar(nodes);
+  const el = document.getElementById('sidebar-nodes');
+  try {
+    const res = await fetch(`${API}/api/nodes`);
+    if (!res.ok) {
+      const raw = (await res.text()).trim().slice(0, 600);
+      el.innerHTML =
+        `<div class="sidebar-diag sidebar-diag-err"><strong>HTTP ${res.status}</strong><br><span class="sidebar-diag-msg">${esc(raw || res.statusText)}</span></div>`;
+      return;
+    }
+    const data = await res.json();
+    renderSidebar(data.nodes ?? [], data.error ?? null, data.meta ?? null);
+  } catch (e) {
+    el.innerHTML =
+      `<div class="sidebar-diag sidebar-diag-err"><strong>Could not load /api/nodes</strong><br><span class="sidebar-diag-msg">${esc(e.message)}</span></div>`;
+  }
 }
 
 function osIcon(os) {
@@ -19,10 +31,20 @@ function osIcon(os) {
   return '⬡';
 }
 
-function renderSidebar(nodes) {
+function renderSidebar(nodes, discoveryError, meta) {
   const el = document.getElementById('sidebar-nodes');
+  if (discoveryError) {
+    el.innerHTML =
+      `<div class="sidebar-diag sidebar-diag-err"><strong>Tailscale discovery failed</strong><br><span class="sidebar-diag-msg">${esc(discoveryError)}</span></div>`;
+    return;
+  }
   if (!nodes.length) {
-    el.innerHTML = '<div style="padding:1rem;font-size:0.72rem;color:#333;text-align:center">No online nodes found</div>';
+    let sub = '';
+    if (meta && typeof meta.total_peers === 'number' && meta.total_peers > 0) {
+      sub = `<div class="sidebar-diag-hint">${esc(String(meta.online_peers) + '/' + String(meta.total_peers))} peers online — other devices may be shut down or not on Tailscale.</div>`;
+    }
+    el.innerHTML =
+      `<div class="sidebar-diag"><span class="sidebar-diag-title">No online nodes</span>${sub}</div>`;
     return;
   }
   el.innerHTML = `<div class="sidebar-section-label">Nodes (${nodes.length})</div>` +
