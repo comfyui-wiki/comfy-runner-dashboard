@@ -47,7 +47,7 @@ export async function callEndpoint(host, method, path, body = null) {
       await pollJob(host, parsed.job_id, _jobPollAbort.signal);
     }
 
-    if (['start', 'stop', 'restart', 'deploy'].some(k => path.includes(k))) {
+    if (['start', 'stop', 'restart', 'deploy', '/config'].some(k => path.includes(k))) {
       setTimeout(() => window.refreshCurrent?.(), 2000);
     }
   } catch (e) {

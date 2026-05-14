@@ -146,6 +146,7 @@ function renderInstanceCard(host, inst, info) {
     <div class="inst-actions">
       <button class="btn-ghost btn-sm" onclick="window.callEndpoint('${host}','POST','/${inst.name}/restart')">↺ Restart</button>
       <button class="btn-ghost btn-sm" onclick="window.openDeploy('${host}','/${inst.name}/deploy','${inst.name}')">⬆ Deploy</button>
+      <button class="btn-ghost btn-sm" onclick="window.openLaunchArgs('${host}','${inst.name}')">⚙ Launch args</button>
       <button class="btn-ghost btn-sm" onclick="window.openModelModal('${host}','${inst.name}','download')">⊞ Models</button>
     </div>
 

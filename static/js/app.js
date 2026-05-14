@@ -4,6 +4,7 @@ import { switchTab, runEp } from './endpoints.js';
 import { closeModal, submitModal } from './modals/generic.js';
 import { closeDeploy, dmModeChange, submitDeploy, openDeploy } from './modals/deploy.js';
 import { closeModelModal, mmSwitchTab, mmSelectDir, mmDirSelectChange, mmFileSelected, submitDownload, submitUpload, openModelModal, initDropZone } from './modals/model.js';
+import { openLaunchArgs, closeLaunchArgs, submitLaunchArgs } from './modals/launch-args.js';
 
 // ── Expose to HTML onclick handlers ──────────────────────────────────────────
 
@@ -29,6 +30,10 @@ window.mmDirSelectChange  = mmDirSelectChange;
 window.mmFileSelected     = mmFileSelected;
 window.submitDownload  = submitDownload;
 window.submitUpload    = submitUpload;
+
+window.openLaunchArgs  = openLaunchArgs;
+window.closeLaunchArgs = closeLaunchArgs;
+window.submitLaunchArgs = submitLaunchArgs;
 
 // ── Self update ───────────────────────────────────────────────────────────────
 

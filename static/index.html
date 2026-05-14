@@ -219,6 +219,35 @@
   </div>
 </div>
 
+<!-- Launch args (ComfyUI process flags saved via PUT /{name}/config) -->
+<div class="modal-overlay" id="launch-args-modal">
+  <div class="modal" style="width:520px">
+    <div class="modal-title">ComfyUI launch arguments</div>
+    <div style="font-size:0.75rem;color:#555;margin-bottom:0.75rem;line-height:1.45">
+      Instance <span id="la-instance" style="color:#aaa"></span> —
+      passed to ComfyUI on start. Saved with <code style="font-size:0.68rem">PUT …/config</code>.
+      <strong style="color:#888">Restart</strong> the instance after saving.
+    </div>
+    <div class="form-row">
+      <label class="form-label" for="la-text">launch_args</label>
+      <textarea class="json-editor" id="la-text" style="min-height:80px;font-family:ui-monospace,monospace;font-size:0.72rem" placeholder="e.g. --enable-manager --cuda-device 0"></textarea>
+    </div>
+    <div class="form-row" style="display:flex;align-items:flex-start;gap:0.6rem">
+      <input type="checkbox" id="la-no-custom" style="margin-top:0.2rem">
+      <div>
+        <label for="la-no-custom" style="font-size:0.78rem;color:#aaa;cursor:pointer">Disable all custom nodes</label>
+        <div style="font-size:0.7rem;color:#666;margin-top:0.15rem;line-height:1.35">
+          Adds or removes <code style="font-size:0.65rem">--disable-all-custom-nodes</code> (ComfyUI must support this flag).
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeLaunchArgs()">Cancel</button>
+      <button class="btn-green" id="la-save" onclick="submitLaunchArgs()">Save</button>
+    </div>
+  </div>
+</div>
+
 <script type="module" src="/static/js/app.js"></script>
 </body>
 </html>
