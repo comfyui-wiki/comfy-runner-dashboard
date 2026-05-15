@@ -1,4 +1,4 @@
-import { callEndpoint } from './utils.js';
+import { callEndpoint, toggleJobConsole, clearJobConsole } from './utils.js';
 import { loadNodes, selectNode, refreshCurrent } from './nodes.js';
 import { switchTab, runEp } from './endpoints.js';
 import { closeModal, submitModal } from './modals/generic.js';
@@ -34,6 +34,9 @@ window.submitUpload    = submitUpload;
 window.openLaunchArgs  = openLaunchArgs;
 window.closeLaunchArgs = closeLaunchArgs;
 window.submitLaunchArgs = submitLaunchArgs;
+
+window.toggleJobConsole = toggleJobConsole;
+window.clearJobConsole  = clearJobConsole;
 
 // ── Self update ───────────────────────────────────────────────────────────────
 

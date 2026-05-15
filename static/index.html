@@ -249,6 +249,22 @@
   </div>
 </div>
 
+<!-- Persistent job log console (fixed at bottom, collapsible) -->
+<div id="job-console" class="job-console collapsed">
+  <div class="job-console-header" onclick="window.toggleJobConsole()">
+    <span class="job-console-title">
+      <span class="job-console-caret">▸</span>
+      Job log
+      <span class="job-console-count" id="job-console-count">0</span>
+    </span>
+    <div class="job-console-actions" onclick="event.stopPropagation()">
+      <button class="btn-ghost btn-sm" onclick="window.clearJobConsole()">Clear</button>
+      <button class="btn-ghost btn-sm" onclick="window.toggleJobConsole()" id="job-console-toggle-btn">Expand</button>
+    </div>
+  </div>
+  <div class="job-console-body" id="job-console-body"></div>
+</div>
+
 <script type="module" src="/static/js/app.js"></script>
 </body>
 </html>

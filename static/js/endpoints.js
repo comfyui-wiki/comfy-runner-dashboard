@@ -3,6 +3,15 @@ import { openModal } from './modals/generic.js';
 import { openDeploy } from './modals/deploy.js';
 import { openModelModal } from './modals/model.js';
 
+// Safely embed an arbitrary string as a JS argument inside an HTML on* attribute.
+// JSON.stringify gives us a valid JS string literal; esc() then makes it safe
+// for the surrounding double-quoted HTML attribute. Without this, an instance
+// name containing a quote, slash, or HTML special char silently corrupts the
+// onclick handler — clicks then fire against the wrong instance.
+function jsArg(s) {
+  return esc(JSON.stringify(String(s ?? '')));
+}
+
 const ENDPOINTS = [
   // Global
   { section: 'Global', method: 'GET',    path: '/status',        desc: 'Aggregate status' },
@@ -65,7 +74,7 @@ export async function renderNodePage(host, status) {
 
   const infos = await Promise.all(installations.map(async inst => {
     try {
-      const r = await fetch(`${API}/api/proxy/${encodeURIComponent(host)}/${inst.name}/info`);
+      const r = await fetch(`${API}/api/proxy/${encodeURIComponent(host)}/${encodeURIComponent(inst.name)}/info`);
       return r.ok ? await r.json() : null;
     } catch { return null; }
   }));
@@ -106,8 +115,8 @@ function renderInstanceCard(host, inst, info) {
     : `<div class="inst-version"><span style="color:#333;font-size:0.65rem">—</span></div>`;
 
   const toggleBtn = inst.running
-    ? `<button class="btn-red btn-sm" onclick="window.callEndpoint('${host}','POST','/${inst.name}/stop')">Stop</button>`
-    : `<button class="btn-green btn-sm" onclick="window.callEndpoint('${host}','POST','/${inst.name}/start')">Start</button>`;
+    ? `<button class="btn-red btn-sm" onclick="window.callEndpoint(${jsArg(host)},'POST','/'+${jsArg(inst.name)}+'/stop')">Stop</button>`
+    : `<button class="btn-green btn-sm" onclick="window.callEndpoint(${jsArg(host)},'POST','/'+${jsArg(inst.name)}+'/start')">Start</button>`;
 
   return `
   <div class="instance-card">
@@ -144,10 +153,10 @@ function renderInstanceCard(host, inst, info) {
     </div>
 
     <div class="inst-actions">
-      <button class="btn-ghost btn-sm" onclick="window.callEndpoint('${host}','POST','/${inst.name}/restart')">↺ Restart</button>
-      <button class="btn-ghost btn-sm" onclick="window.openDeploy('${host}','/${inst.name}/deploy','${inst.name}')">⬆ Deploy</button>
-      <button class="btn-ghost btn-sm" onclick="window.openLaunchArgs('${host}','${inst.name}')">⚙ Launch args</button>
-      <button class="btn-ghost btn-sm" onclick="window.openModelModal('${host}','${inst.name}','download')">⊞ Models</button>
+      <button class="btn-ghost btn-sm" onclick="window.callEndpoint(${jsArg(host)},'POST','/'+${jsArg(inst.name)}+'/restart')">↺ Restart</button>
+      <button class="btn-ghost btn-sm" onclick="window.openDeploy(${jsArg(host)},'/'+${jsArg(inst.name)}+'/deploy',${jsArg(inst.name)})">⬆ Deploy</button>
+      <button class="btn-ghost btn-sm" onclick="window.openLaunchArgs(${jsArg(host)},${jsArg(inst.name)})">⚙ Launch args</button>
+      <button class="btn-ghost btn-sm" onclick="window.openModelModal(${jsArg(host)},${jsArg(inst.name)},'download')">⊞ Models</button>
     </div>
 
     <div id="card-resp-${esc(inst.name)}" class="card-resp"></div>
@@ -174,7 +183,6 @@ function renderEndpointPanel(host, installations) {
       <span class="ep-panel-title">API Endpoints</span>
     </div>
     <div class="tabs">${tabsHtml}</div>
-    <div id="ep-resp" class="ep-resp"></div>
     ${contentHtml}
   </div>`;
 }
@@ -203,7 +211,7 @@ function renderEpRow(host, ep, instNames) {
     <span class="ep-desc">${esc(ep.desc)}</span>
     <div class="ep-btn-group">
       ${controlHtml}
-      <button class="btn-ghost btn-sm" onclick="window.runEp('${host}','${ep.method}','${ep.path}','${pathId}',${!!ep.hasBody})">Run</button>
+      <button class="btn-ghost btn-sm" onclick="window.runEp(${jsArg(host)},${jsArg(ep.method)},${jsArg(ep.path)},${jsArg(pathId)},${!!ep.hasBody})">Run</button>
     </div>
   </div>`;
 }

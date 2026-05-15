@@ -380,19 +380,79 @@ button:not(:disabled):active { transform: scale(0.97); }
 .ep-desc { color: var(--text-3); font-size: 0.68rem; flex: 1.2; }
 .ep-btn-group { display: flex; gap: 0.3rem; flex-shrink: 0; align-items: center; }
 
-/* Global response box */
-.ep-resp {
-  margin: 0 1.1rem 0.75rem;
-  font-family: "SF Mono", monospace; font-size: 0.68rem;
-  color: #6ee7b7; background: #080808;
-  border: 1px solid var(--border);
-  border-radius: 5px; padding: 0.55rem 0.75rem;
-  max-height: 180px; overflow-y: auto;
-  white-space: pre-wrap; word-break: break-all;
-  display: none;
+/* Global response box — kept as a no-op placeholder for backwards compat;
+   actual output now lives in the persistent #job-console at the page bottom. */
+.ep-resp { display: none !important; }
+
+/* ── Persistent job log console (bottom of viewport) ──────────────────────── */
+
+.job-console {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  background: var(--bg-2);
+  border-top: 1px solid var(--border-2);
+  z-index: 90;
+  display: flex; flex-direction: column;
+  transition: height 0.18s ease;
+  height: 360px;
+  box-shadow: 0 -4px 18px rgba(0,0,0,0.4);
 }
-.ep-resp.visible { display: block; }
-.ep-resp.error   { color: #f87171; }
+.job-console.collapsed { height: 30px; }
+
+.job-console-header {
+  flex: 0 0 30px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 0.9rem;
+  background: var(--bg-3);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+}
+.job-console-title {
+  font-size: 0.72rem; color: var(--text-2);
+  display: flex; align-items: center; gap: 0.5rem;
+  letter-spacing: 0.02em;
+}
+.job-console-caret {
+  display: inline-block;
+  transition: transform 0.15s ease;
+  color: var(--text-3);
+  font-size: 0.7rem;
+}
+.job-console:not(.collapsed) .job-console-caret { transform: rotate(90deg); }
+.job-console-count {
+  background: var(--bg-4); color: var(--text-2);
+  font-size: 0.62rem; padding: 0.05rem 0.4rem;
+  border-radius: 8px; min-width: 18px; text-align: center;
+}
+.job-console-actions { display: flex; gap: 0.3rem; }
+
+.job-console-body {
+  flex: 1; overflow-y: auto;
+  padding: 0.4rem 0.9rem 0.6rem;
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 0.68rem;
+}
+.job-console.collapsed .job-console-body { display: none; }
+
+.job-entry {
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--border);
+  white-space: pre-wrap; word-break: break-all;
+}
+.job-entry:last-child { border-bottom: none; }
+.job-entry-meta {
+  display: flex; gap: 0.5rem; flex-wrap: wrap;
+  color: var(--text-3); font-size: 0.62rem;
+  margin-bottom: 0.25rem;
+}
+.job-entry-meta .ts    { color: var(--text-2); }
+.job-entry-meta .tag   { color: #93c5fd; }
+.job-entry-meta .inst  { color: #fbbf24; }
+.job-entry-body { color: #6ee7b7; }
+.job-entry.error .job-entry-body { color: #f87171; }
+
+/* Push main content up so it doesn't sit under the console header. */
+.main { padding-bottom: 38px; }
 
 /* ── Inputs ──────────────────────────────────────────────────────────────── */
 

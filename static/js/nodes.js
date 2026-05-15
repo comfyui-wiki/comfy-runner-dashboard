@@ -50,7 +50,9 @@ function renderSidebar(nodes, discoveryError, meta) {
   el.innerHTML = `<div class="sidebar-section-label">Nodes (${nodes.length})</div>` +
     nodes.map(n => {
       const host = n.dns_name || n.hostname;
-      return `<div class="node-item" id="nav-${esc(host)}" onclick="window.selectNode('${esc(host)}','${esc(n.hostname)}')">
+      const hostArg = esc(JSON.stringify(String(host)));
+      const labelArg = esc(JSON.stringify(String(n.hostname)));
+      return `<div class="node-item" id="nav-${esc(host)}" onclick="window.selectNode(${hostArg},${labelArg})">
         <span class="node-icon">${osIcon(n.os)}</span>
         <span class="node-label">
           <div class="node-name">${esc(n.hostname)}</div>
