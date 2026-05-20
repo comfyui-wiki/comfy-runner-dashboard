@@ -12,6 +12,27 @@ function jsArg(s) {
   return esc(JSON.stringify(String(s ?? '')));
 }
 
+// Normalise a deployed_repo value to a short ``owner/repo`` slug for
+// display. Accepts bare slugs, plain https URLs, and credentialed URLs
+// (``https://x-access-token:TOKEN@github.com/owner/repo.git``).
+// Returns null when the value isn't a recognisable GitHub repo, so the
+// caller can fall back to a generic "#N" label instead of leaking the
+// full string into the UI.
+function _extractRepoSlug(raw) {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  if (/^[^\/\s]+\/[^\/\s]+$/.test(s)) return s.replace(/\.git$/, '');
+  try {
+    const u = new URL(s);
+    if (u.hostname !== 'github.com') return null;
+    const parts = u.pathname.replace(/^\/+|\/+$/g, '').split('/');
+    if (parts.length < 2) return null;
+    return `${parts[0]}/${parts[1].replace(/\.git$/, '')}`;
+  } catch {
+    return null;
+  }
+}
+
 const ENDPOINTS = [
   // Global
   { section: 'Global', method: 'GET',    path: '/status',        desc: 'Aggregate status' },
@@ -27,6 +48,7 @@ const ENDPOINTS = [
   { section: 'Global', method: 'GET',    path: '/startup-log',   desc: 'Tail server startup log (?lines=N)' },
   { section: 'Global', method: 'GET',    path: '/tailnet/runners', desc: 'Auto-discover comfy-runners on tailnet' },
   { section: 'Global', method: 'POST',   path: '/pods/self-update', desc: 'Fan out self-update across tailnet', hasBody: true },
+  { section: 'Global', method: 'GET',    path: '/openapi.json', desc: 'OpenAPI schema of this runner' },
   // Instance
   { section: 'Instance', method: 'GET',    path: '/{name}/status',        desc: 'Instance status' },
   { section: 'Instance', method: 'GET',    path: '/{name}/info',          desc: 'Installation info' },
@@ -54,7 +76,13 @@ const ENDPOINTS = [
   { section: 'Models', method: 'DELETE', path: '/{name}/upload-model/status', desc: 'Cancel current upload' },
   { section: 'Models', method: 'POST',   path: '/{name}/workflow-models',     desc: 'Extract & download models from a workflow JSON', hasBody: true },
   // Outputs
-  { section: 'Outputs', method: 'GET', path: '/{name}/outputs', desc: 'List output files' },
+  { section: 'Outputs', method: 'GET', path: '/{name}/outputs', desc: 'List output files (?prefix=&limit=&after=)' },
+  { section: 'Outputs', method: 'GET', path: '/{name}/outputs/{filepath}', desc: 'Download a single output file', pathParams: ['filepath'] },
+  // ComfyUI proxy — direct passthrough to the instance's running ComfyUI server.
+  // Useful when the instance has no Tailscale serve URL / ngrok tunnel and you
+  // still want to poke /system_stats, /queue, etc., from the dashboard host.
+  { section: 'ComfyUI', method: 'GET',  path: '/{name}/comfyui/{subpath}', desc: 'Proxy GET to ComfyUI', pathParams: ['subpath'] },
+  { section: 'ComfyUI', method: 'POST', path: '/{name}/comfyui/{subpath}', desc: 'Proxy POST to ComfyUI', hasBody: true, pathParams: ['subpath'] },
   // Snapshot
   { section: 'Snapshot', method: 'GET',  path: '/{name}/snapshot',                          desc: 'List snapshots' },
   { section: 'Snapshot', method: 'POST', path: '/{name}/snapshot/save',                     desc: 'Capture snapshot' },
@@ -64,6 +92,9 @@ const ENDPOINTS = [
   { section: 'Snapshot', method: 'GET',  path: '/{name}/snapshot/{snapshot_id}/diff',       desc: 'Diff snapshot vs current', pathParams: ['snapshot_id'] },
   { section: 'Snapshot', method: 'GET',  path: '/{name}/snapshot/{snapshot_id}/diff/{other_id}', desc: 'Diff two snapshots', pathParams: ['snapshot_id', 'other_id'] },
   { section: 'Snapshot', method: 'GET',  path: '/{name}/snapshot/{snapshot_id}/export',     desc: 'Export snapshot to JSON', pathParams: ['snapshot_id'] },
+  // Reviews — prepare an installation for reviewing a PR (extra models / workflows pulled from the PR head).
+  { section: 'Reviews', method: 'POST', path: '/reviews/local',  desc: 'Prepare PR review on a named install', hasBody: true },
+  { section: 'Reviews', method: 'POST', path: '/reviews/cleanup', desc: 'Tear down review artifacts', hasBody: true },
   // Jobs
   { section: 'Jobs', method: 'GET',  path: '/job/{job_id}',        desc: 'Poll job',    pathParams: ['job_id'] },
   { section: 'Jobs', method: 'POST', path: '/job/{job_id}/cancel', desc: 'Cancel job',  pathParams: ['job_id'] },
@@ -83,6 +114,7 @@ export async function renderNodePage(host, status) {
   for (let i = 0; i < installations.length; i++) {
     html += renderInstanceCard(host, installations[i], infos[i]);
   }
+  html += renderAddInstanceCard(host);
   html += '</div>';
 
   if (installations.length) {
@@ -99,6 +131,9 @@ function renderInstanceCard(host, inst, info) {
   const branch      = info?.deployed_branch || null;
   const serveUrl    = info?.serve_url  || null;   // Tailscale-served HTTPS URL
   const tunnelUrl   = info?.tunnel_url || null;   // ngrok / public tunnel URL
+  const prNumber    = info?.deployed_pr || null;
+  const prRepo      = info?.deployed_repo || null;
+  const prTitle     = info?.deployed_title || null;
 
   // Open buttons — only shown when the instance is running and the URL exists.
   const openLinks = inst.running
@@ -106,8 +141,32 @@ function renderInstanceCard(host, inst, info) {
        ${tunnelUrl ? `<a class="btn-link btn-sm btn-link-ngrok" href="${esc(tunnelUrl)}" target="_blank" rel="noopener" title="${esc(tunnelUrl)}">↗ ngrok</a>` : ''}`
     : '';
 
-  const versionHtml = (ref || shortCommit || branch)
+  // PR badge — when this install is checked out at a PR head, surface it
+  // prominently so it's obvious the instance is running review code rather
+  // than a release/branch. We accept ``deployed_repo`` in several shapes
+  // (bare "owner/repo", full https URL, token-laced URL) and normalise
+  // to a short "owner/repo" label; otherwise the badge balloons across the
+  // card and leaks credentials in the UI.
+  let prBadge = '';
+  if (prNumber) {
+    const repoSlug = _extractRepoSlug(prRepo);
+    const shortLabel = repoSlug ? `${repoSlug}#${prNumber}` : `#${prNumber}`;
+    const tipParts = [];
+    if (prTitle) tipParts.push(prTitle);
+    if (repoSlug) tipParts.push(`${repoSlug}#${prNumber}`);
+    else tipParts.push(`PR #${prNumber}`);
+    const tip = tipParts.join(' — ');
+    if (repoSlug) {
+      const href = `https://github.com/${repoSlug}/pull/${prNumber}`;
+      prBadge = `<a class="ver-pr" href="${esc(href)}" target="_blank" rel="noopener" title="${esc(tip)}">PR ${esc(shortLabel)}</a>`;
+    } else {
+      prBadge = `<span class="ver-pr" title="${esc(tip)}">PR ${esc(shortLabel)}</span>`;
+    }
+  }
+
+  const versionHtml = (ref || shortCommit || branch || prBadge)
     ? `<div class="inst-version">
+        ${prBadge}
         ${ref         ? `<span class="ver-tag">${esc(ref)}</span>` : ''}
         ${branch      ? `<span class="ver-branch"><svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" style="opacity:.7"><path d="M11.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5zm-2.25.75a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25zM4.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5zM4.25 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5z"/></svg>${esc(branch)}</span>` : ''}
         ${shortCommit ? `<span class="ver-commit" title="${esc(info.head_commit || '')}">${esc(shortCommit)}</span>` : ''}
@@ -118,10 +177,28 @@ function renderInstanceCard(host, inst, info) {
     ? `<button class="btn-red btn-sm" onclick="window.callEndpoint(${jsArg(host)},'POST','/'+${jsArg(inst.name)}+'/stop')">Stop</button>`
     : `<button class="btn-green btn-sm" onclick="window.callEndpoint(${jsArg(host)},'POST','/'+${jsArg(inst.name)}+'/start')">Start</button>`;
 
+  // Three-state health signal lives on the top-row dot now:
+  //   - stopped:   grey
+  //   - running + healthy:   green (with halo)
+  //   - running + unhealthy: amber (with halo) — process alive but the
+  //     HTTP health probe failed, usually means ComfyUI is still booting
+  //     or hung. The actionable case; surface in the tooltip.
+  let healthState, healthTip;
+  if (!inst.running) {
+    healthState = 'stopped';
+    healthTip = 'Stopped';
+  } else if (inst.healthy) {
+    healthState = 'healthy';
+    healthTip = 'Running — healthy';
+  } else {
+    healthState = 'unhealthy';
+    healthTip = 'Running — health probe failed (still booting or hung)';
+  }
+
   return `
-  <div class="instance-card">
+  <div class="instance-card is-${healthState}">
     <div class="inst-top">
-      <span class="inst-status-dot ${inst.running ? 'dot-on' : 'dot-off'}"></span>
+      <span class="inst-status-dot dot-${healthState}" title="${esc(healthTip)}"></span>
       <span class="inst-name">${esc(inst.name)}</span>
       <span class="inst-open-links">${openLinks}</span>
       <span class="inst-toggle">${toggleBtn}</span>
@@ -132,23 +209,15 @@ function renderInstanceCard(host, inst, info) {
     <div class="inst-meta">
       <div class="meta-item">
         <div class="meta-label">Port</div>
-        <div class="meta-val">${inst.port}</div>
+        <div class="meta-val">${inst.port != null && inst.port !== 'undefined' ? esc(String(inst.port)) : '–'}</div>
       </div>
       <div class="meta-item">
         <div class="meta-label">Uptime</div>
-        <div class="meta-val">${uptime}</div>
+        <div class="meta-val">${inst.running ? uptime : '–'}</div>
       </div>
       <div class="meta-item">
         <div class="meta-label">PID</div>
         <div class="meta-val">${inst.pid || '–'}</div>
-      </div>
-      <div class="meta-item">
-        <div class="meta-label">Health</div>
-        <div class="meta-val">
-          <span class="badge ${inst.healthy ? 'badge-healthy' : 'badge-unhealthy'}">
-            ${inst.healthy ? '● healthy' : '● unhealthy'}
-          </span>
-        </div>
       </div>
     </div>
 
@@ -163,12 +232,26 @@ function renderInstanceCard(host, inst, info) {
   </div>`;
 }
 
+// "+ New instance" placeholder tile rendered at the end of the grid.
+// Initialising a fresh install on the remote runner is just a deploy call
+// with the instance name set to something new — comfy-runner auto-inits
+// when no record exists, then proceeds with the deploy mode (we use
+// `latest`, which downloads the standalone env + latest stable ComfyUI).
+function renderAddInstanceCard(host) {
+  return `
+  <div class="instance-card instance-card-add" onclick="window.openNewInstance(${jsArg(host)})" role="button" tabindex="0">
+    <div class="add-plus">+</div>
+    <div class="add-label">New instance</div>
+    <div class="add-sub">Initialise a fresh ComfyUI install on this node</div>
+  </div>`;
+}
+
 function renderEndpointPanel(host, installations) {
   const instNames = installations.map(i => i.name);
   const sections  = [...new Set(ENDPOINTS.map(e => e.section))];
 
   const tabsHtml = sections.map((s, i) =>
-    `<div class="tab ${i === 0 ? 'active' : ''}" onclick="window.switchTab('${s}')">${s}</div>`
+    `<div class="tab ${i === 0 ? 'active' : ''}" onclick="window.switchTab(${jsArg(s)})">${esc(s)}</div>`
   ).join('');
 
   const contentHtml = sections.map((s, i) => `

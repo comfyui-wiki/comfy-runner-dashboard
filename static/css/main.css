@@ -34,7 +34,7 @@ body {
 /* ── Layout ──────────────────────────────────────────────────────────────── */
 
 .sidebar {
-  position: fixed; left: 0; top: 0; bottom: 0; width: 216px;
+  position: fixed; left: 0; top: 0; bottom: 0; width: 232px;
   background: var(--bg-2);
   border-right: 1px solid var(--border);
   overflow-y: auto;
@@ -42,8 +42,8 @@ body {
 }
 
 .main {
-  margin-left: 216px;
-  padding: 1.5rem 2rem;
+  margin-left: 232px;
+  padding: 1.6rem 2rem;
   min-height: 100vh;
 }
 
@@ -119,17 +119,27 @@ body {
 
 .node-item {
   display: flex; align-items: center; gap: 0.55rem;
-  padding: 0.45rem 1rem; cursor: pointer;
+  margin: 0.1rem 0.55rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 7px;
+  cursor: pointer;
   font-size: 0.8rem; color: var(--text-2);
-  border-left: 2px solid transparent;
-  transition: background 0.1s, color 0.1s;
+  transition: background 0.1s, color 0.1s, box-shadow 0.1s;
   position: relative;
 }
 .node-item:hover { background: var(--bg-4); color: var(--text-1); }
 .node-item.active {
-  color: var(--text-1);
-  border-left-color: var(--blue);
-  background: #1a2035;
+  color: #fff;
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+  box-shadow: 0 0 0 1px #3b82f6aa, 0 3px 10px rgba(59, 130, 246, 0.18);
+}
+.node-item.active .node-name { font-weight: 600; }
+.node-item.active .dot-on { box-shadow: 0 0 8px #86efac; }
+.node-item.active::before {
+  content: ''; position: absolute;
+  left: -0.55rem; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 60%; border-radius: 0 3px 3px 0;
+  background: var(--blue);
 }
 
 .node-icon {
@@ -167,16 +177,16 @@ body {
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
 
 button {
-  cursor: pointer; border: none; border-radius: 5px;
+  cursor: pointer; border: none; border-radius: 6px;
   font-size: 0.75rem; font-weight: 500;
-  padding: 0.38rem 0.8rem;
-  transition: opacity 0.12s, transform 0.08s;
+  padding: 0.4rem 0.85rem;
+  transition: filter 0.12s, transform 0.08s, background 0.12s, color 0.12s, border-color 0.12s;
   display: inline-flex; align-items: center; gap: 0.3rem;
   white-space: nowrap;
 }
-button:disabled { opacity: 0.3; cursor: not-allowed; }
-button:not(:disabled):hover { opacity: 0.85; }
-button:not(:disabled):active { transform: scale(0.97); }
+button:disabled { opacity: 0.35; cursor: not-allowed; }
+button:not(:disabled):hover { filter: brightness(1.15); }
+button:not(:disabled):active { transform: scale(0.96); }
 
 .btn-primary { background: var(--blue); color: #fff; }
 .btn-green   { background: #15803d; color: #bbf7d0; }
@@ -185,9 +195,19 @@ button:not(:disabled):active { transform: scale(0.97); }
   background: transparent; color: var(--text-2);
   border: 1px solid var(--border-2);
 }
-.btn-ghost:hover { background: var(--bg-4); color: var(--text-1); }
-.btn-sm { padding: 0.25rem 0.6rem; font-size: 0.7rem; }
+.btn-ghost:hover { background: var(--bg-4); color: var(--text-1); border-color: #3a3a3a; }
+.btn-sm { padding: 0.28rem 0.65rem; font-size: 0.7rem; }
 .btn-danger { background: #7f1d1d; color: #fca5a5; }
+
+/* Subtle variant: same shape as primary but desaturated until hover.
+   Use on header actions that fire rarely so they don't compete for
+   attention with healthy/unhealthy status colors in the main area. */
+.btn-subtle {
+  background: var(--bg-4); color: var(--text-2);
+  border: 1px solid var(--border-2);
+}
+.btn-subtle:hover { background: #15803d22; color: #86efac; border-color: #14532d; }
+.btn-subtle-danger:hover { background: #7f1d1d22; color: #fca5a5; border-color: #7f1d1d; }
 
 /* ── Instance grid ───────────────────────────────────────────────────────── */
 
@@ -201,11 +221,61 @@ button:not(:disabled):active { transform: scale(0.97); }
 .instance-card {
   background: var(--bg-3);
   border: 1px solid var(--border);
-  border-radius: 9px;
-  padding: 0.9rem 1rem;
-  transition: border-color 0.15s;
+  border-radius: 10px;
+  padding: 0.95rem 1.05rem;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+  position: relative;
 }
-.instance-card:hover { border-color: #333; }
+.instance-card:hover {
+  border-color: #2f2f2f;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+}
+.instance-card.is-healthy {
+  border-left: 3px solid var(--green);
+  padding-left: calc(1.05rem - 2px);
+}
+.instance-card.is-unhealthy {
+  border-left: 3px solid var(--amber);
+  padding-left: calc(1.05rem - 2px);
+}
+.instance-card.is-stopped {
+  opacity: 0.72;
+  border-left: 3px solid #2f2f2f;
+  padding-left: calc(1.05rem - 2px);
+}
+.instance-card.is-stopped:hover { opacity: 1; }
+.instance-card.is-stopped .inst-name { color: var(--text-2); }
+
+/* "+ New instance" placeholder tile */
+.instance-card-add {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 0.25rem;
+  min-height: 175px;
+  background: transparent;
+  border-style: dashed;
+  cursor: pointer;
+  color: var(--text-3);
+  text-align: center;
+}
+.instance-card-add:hover {
+  border-color: var(--green);
+  color: var(--text-1);
+  background: rgba(34, 197, 94, 0.04);
+}
+.instance-card-add .add-plus {
+  font-size: 1.7rem; line-height: 1;
+  font-weight: 300;
+  margin-bottom: 0.25rem;
+}
+.instance-card-add .add-label {
+  font-size: 0.82rem; font-weight: 600;
+}
+.instance-card-add .add-sub {
+  font-size: 0.66rem; color: var(--text-3);
+  max-width: 220px; line-height: 1.4;
+}
 
 /* card top row: name + status dot + run/stop */
 .inst-top {
@@ -213,7 +283,16 @@ button:not(:disabled):active { transform: scale(0.97); }
   margin-bottom: 0.55rem;
 }
 .inst-status-dot {
-  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 1px;
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 1px;
+  cursor: help;
+}
+.dot-healthy   { background: var(--green); box-shadow: 0 0 8px #22c55e88; }
+.dot-unhealthy { background: var(--amber); box-shadow: 0 0 8px #f59e0b88; animation: dot-pulse 1.6s ease-in-out infinite; }
+.dot-stopped   { background: var(--text-3); }
+
+@keyframes dot-pulse {
+  0%, 100% { box-shadow: 0 0 8px #f59e0b88; }
+  50%      { box-shadow: 0 0 12px #f59e0bcc; }
 }
 .inst-name {
   font-size: 0.85rem; font-weight: 600; color: var(--text-1);
@@ -275,6 +354,16 @@ button:not(:disabled):active { transform: scale(0.97); }
   color: var(--text-3); background: var(--bg-4);
   padding: 0.1rem 0.38rem; border-radius: 3px;
 }
+.ver-pr {
+  font-size: 0.65rem; font-weight: 600;
+  background: #4c1d95; color: #d8b4fe;
+  padding: 0.1rem 0.45rem; border-radius: 4px;
+  text-decoration: none;
+  display: inline-flex; align-items: center;
+  max-width: 100%;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ver-pr:hover { background: #5b21b6; color: #f3e8ff; }
 
 /* meta row */
 .inst-meta {
@@ -305,6 +394,7 @@ button:not(:disabled):active { transform: scale(0.97); }
 }
 .badge-healthy   { background: #14532d44; color: #86efac; border: 1px solid #14532d; }
 .badge-unhealthy { background: #7f1d1d44; color: #fca5a5; border: 1px solid #7f1d1d; }
+.badge-stopped   { background: transparent; color: var(--text-3); border: 1px solid var(--border-2); }
 
 /* card response area */
 .card-resp {
@@ -392,21 +482,22 @@ button:not(:disabled):active { transform: scale(0.97); }
   border-top: 1px solid var(--border-2);
   z-index: 90;
   display: flex; flex-direction: column;
-  transition: height 0.18s ease;
+  transition: height 0.2s ease;
   height: 360px;
-  box-shadow: 0 -4px 18px rgba(0,0,0,0.4);
+  box-shadow: 0 -6px 24px rgba(0,0,0,0.5);
 }
-.job-console.collapsed { height: 30px; }
+.job-console.collapsed { height: 34px; }
 
 .job-console-header {
-  flex: 0 0 30px;
+  flex: 0 0 34px;
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 0.9rem;
+  padding: 0 1rem;
   background: var(--bg-3);
   border-bottom: 1px solid var(--border);
   cursor: pointer;
   user-select: none;
 }
+.job-console-header:hover { background: var(--bg-4); }
 .job-console-title {
   font-size: 0.72rem; color: var(--text-2);
   display: flex; align-items: center; gap: 0.5rem;
@@ -452,7 +543,7 @@ button:not(:disabled):active { transform: scale(0.97); }
 .job-entry.error .job-entry-body { color: #f87171; }
 
 /* Push main content up so it doesn't sit under the console header. */
-.main { padding-bottom: 38px; }
+.main { padding-bottom: 44px; }
 
 /* ── Inputs ──────────────────────────────────────────────────────────────── */
 

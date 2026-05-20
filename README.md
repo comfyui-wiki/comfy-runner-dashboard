@@ -30,11 +30,22 @@ Then open [http://localhost:7890](http://localhost:7890) in your browser.
 
 ## Features
 
+### Creating a new instance
+
+In the main area, the **"+ New instance"** dashed tile at the end of the grid initialises a fresh ComfyUI install on the selected node:
+
+- **Instance name** — lowercase letters/digits + `-`/`_`. Becomes the name used in all per-instance API paths.
+- **Start instance after init** — launches ComfyUI right after the install completes.
+- **Advanced** (collapsed by default) — only expand if you need to override the runner's auto-detected GPU variant or enable CUDA compatibility mode for older NVIDIA drivers. The dropdown covers the common Linux/Windows/macOS × NVIDIA/AMD/Intel/MPS/CPU combinations; **Custom variant id…** lets you type any variant string the runner accepts.
+
+Submits a single `POST /<name>/deploy` with `{latest: true}` — the runner sees no existing record, auto-inits (downloads the standalone Python env, clones ComfyUI), then immediately checks out the latest stable release. Progress streams to the bottom Job log console.
+
 ### Instance Cards
 
 Each ComfyUI installation shows:
 - Running status, port, uptime, PID
 - Deployed version (release tag, branch, commit hash)
+- **PR badge** — when the instance is checked out at a PR head (set by `POST /<name>/deploy` with `pr=`), a purple `PR owner/repo#N` chip appears, linking to the GitHub PR. Hover for the PR title.
 - **Start / Stop / Restart** buttons
 
 ### Deploy
@@ -56,6 +67,18 @@ Two checkboxes:
 - **Force (drop dirty changes)** — destructive: `git reset --hard` + `git clean -fd` on the ComfyUI clone before deploying. Runtime directories (`styles/`, `output/`, `input/`, `temp/`, `user/`, `models/`, `custom_nodes/`) are still preserved. Default behavior (unchecked) is to stash any non-runtime dirty files and continue, recoverable via `git stash list` on the box.
 
 > To get the absolute latest commit on master: first deploy with **Branch = `master`**, then use **Pull current branch** for subsequent updates.
+
+#### Private fork / private repo deploys
+
+For **Branch** and **Pull Request** modes the deploy modal shows a collapsible **"Repo & auth"** section:
+
+- **Repo URL** — any `https://github.com/owner/repo.git` URL. Pulls the branch / PR from there instead of upstream ComfyUI.
+- **GitHub token** — optional. Only needed for private repos. The token is injected into the URL as `https://x-access-token:<TOKEN>@github.com/…` and sent as the `repo` field of the deploy body.
+- **Remember repo + token in this browser** — opt-in, persisted to `localStorage`. Untick + submit to wipe it.
+
+**To switch back to public ComfyUI:** open Deploy → leave Repo URL blank → pick **Latest release** or a public-branch deploy. The runner uses a temporary `deploy-pr` / `deploy-branch` git remote for repo overrides and never touches `origin`, so reverting is a single deploy away.
+
+> ⚠ **Token caveat:** the runner writes the temporary remote into `.git/config` on the target machine. The token is readable there until the next non-private deploy overwrites it. Use a fine-scoped PAT (read-only on the specific repo), not a full-account token. Only `https://github.com/…` URLs get the token injection — other hosts (GitLab, Gitea, self-hosted GHE) are sent through unchanged.
 
 ### Models
 
@@ -87,12 +110,14 @@ A tabbed panel exposes all comfy-runner API endpoints for interactive testing:
 
 | Tab | Endpoints |
 |-----|-----------|
-| Global | status, installations, system-info, jobs, config, deploy, restart, stop, self-update |
-| Instance | status, info, logs, start, stop, restart, deploy, config, rename, unlock, delete |
+| Global | status, installations, system-info, jobs, config, deploy, restart, stop, self-update, startup-log, tailnet/runners, pods/self-update, openapi.json |
+| Instance | status, info, logs, start, stop, restart, deploy, config, rename, unlock, delete, tunnel/start, tunnel/stop |
 | Nodes | list, add/remove/enable/disable |
-| Models | download, move, upload, upload status |
-| Outputs | list output files |
-| Snapshot | list, save, restore, import |
+| Models | download, move, upload, upload status, workflow-models |
+| Outputs | list output files, download a single file |
+| ComfyUI | proxy GET/POST to a running instance's ComfyUI server (for endpoints like `/queue`, `/system_stats`, `/object_info`) |
+| Snapshot | list, save, restore, import, show/diff/export |
+| Reviews | local PR review prep, cleanup |
 | Jobs | poll status, cancel |
 
 Endpoints that accept a request body open a JSON editor modal before sending.

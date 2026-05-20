@@ -5,6 +5,7 @@ import { closeModal, submitModal } from './modals/generic.js';
 import { closeDeploy, dmModeChange, submitDeploy, openDeploy } from './modals/deploy.js';
 import { closeModelModal, mmSwitchTab, mmSelectDir, mmDirSelectChange, mmFileSelected, submitDownload, submitUpload, openModelModal, initDropZone } from './modals/model.js';
 import { openLaunchArgs, closeLaunchArgs, submitLaunchArgs } from './modals/launch-args.js';
+import { openNewInstance, closeNewInstance, submitNewInstance, niVariantChange } from './modals/new-instance.js';
 
 // ── Expose to HTML onclick handlers ──────────────────────────────────────────
 
@@ -34,6 +35,11 @@ window.submitUpload    = submitUpload;
 window.openLaunchArgs  = openLaunchArgs;
 window.closeLaunchArgs = closeLaunchArgs;
 window.submitLaunchArgs = submitLaunchArgs;
+
+window.openNewInstance    = openNewInstance;
+window.closeNewInstance   = closeNewInstance;
+window.submitNewInstance  = submitNewInstance;
+window.niVariantChange    = niVariantChange;
 
 window.toggleJobConsole = toggleJobConsole;
 window.clearJobConsole  = clearJobConsole;

@@ -31,8 +31,8 @@
     </div>
     <div class="header-actions">
       <button class="btn-ghost" onclick="refreshCurrent()">↻ Refresh</button>
-      <button class="btn-green" id="btn-update" onclick="doSelfUpdate(false)" style="display:none">⬆ Self-update</button>
-      <button class="btn-danger" id="btn-update-force" onclick="doSelfUpdate(true)" style="display:none" title="Force reset --hard to origin/main">⬆ Force-update</button>
+      <button class="btn-subtle" id="btn-update" onclick="doSelfUpdate(false)" style="display:none">⬆ Self-update</button>
+      <button class="btn-subtle btn-subtle-danger" id="btn-update-force" onclick="doSelfUpdate(true)" style="display:none" title="Force reset --hard to origin/main">⬆ Force-update</button>
     </div>
   </div>
 
@@ -197,6 +197,38 @@
       <input class="ep-input" id="dm-input-val" placeholder="">
     </div>
 
+    <!-- Repo / auth (only meaningful for branch/pr modes — runner only
+         forwards repo_url for those two paths). Collapsed by default. -->
+    <div class="form-row" id="dm-repo-row" style="display:none">
+      <details id="dm-repo-details" style="background:var(--bg-3,#161616);border:1px solid var(--border,#222);border-radius:5px;padding:0.5rem 0.7rem">
+        <summary style="cursor:pointer;font-size:0.74rem;color:#aaa;outline:none">
+          Repo &amp; auth <span style="color:#666;font-size:0.68rem">(private fork? click to expand)</span>
+        </summary>
+        <div style="margin-top:0.65rem">
+          <label class="form-label" for="dm-repo-url">Repo URL <span style="color:#555">(optional — defaults to upstream ComfyUI)</span></label>
+          <input class="ep-input" id="dm-repo-url" placeholder="https://github.com/owner/repo.git" autocomplete="off">
+
+          <label class="form-label" for="dm-gh-token" style="margin-top:0.55rem">GitHub token <span style="color:#555">(only for private repos)</span></label>
+          <input class="ep-input" id="dm-gh-token" type="password" placeholder="ghp_… or github_pat_…" autocomplete="off">
+
+          <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.55rem;font-size:0.72rem;color:#aaa;cursor:pointer">
+            <input type="checkbox" id="dm-remember-token">
+            Remember repo + token in this browser
+          </label>
+
+          <div style="font-size:0.68rem;color:#666;margin-top:0.55rem;line-height:1.45">
+            Token is injected as <code style="font-size:0.62rem">https://x-access-token:&lt;TOKEN&gt;@github.com/…</code> in the
+            <code style="font-size:0.62rem">repo</code> field of this single deploy request.
+            <strong style="color:#f59e0b">Caveat:</strong> the runner saves the URL into a temporary
+            <code style="font-size:0.62rem">deploy-pr</code>/<code style="font-size:0.62rem">deploy-branch</code> git remote
+            on the target machine — the token will be readable from that box's <code style="font-size:0.62rem">.git/config</code>
+            until the next deploy overwrites it. Use a fine-scoped PAT.
+            <br>To switch back to the public ComfyUI, just deploy <em>Latest</em> / a public branch with the Repo URL blank.
+          </div>
+        </div>
+      </details>
+    </div>
+
     <div class="form-row" style="display:flex;align-items:center;gap:0.6rem">
       <input type="checkbox" id="dm-start" checked>
       <label for="dm-start" style="font-size:0.78rem;color:#aaa;cursor:pointer">Start instance after deploy</label>
@@ -245,6 +277,77 @@
     <div class="modal-footer">
       <button class="btn-ghost" onclick="closeLaunchArgs()">Cancel</button>
       <button class="btn-green" id="la-save" onclick="submitLaunchArgs()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- New instance — init a fresh ComfyUI install on the selected node -->
+<div class="modal-overlay" id="new-instance-modal">
+  <div class="modal" style="width:500px">
+    <div class="modal-title">New ComfyUI instance</div>
+    <div style="font-size:0.74rem;color:#666;margin-bottom:1rem;line-height:1.45">
+      Initialises a fresh install on <span id="ni-host" style="color:#aaa"></span>.
+      Downloads the standalone Python env + clones ComfyUI + deploys the latest stable release.
+      Takes a few minutes — progress streams to the Job log.
+    </div>
+
+    <div class="form-row">
+      <label class="form-label" for="ni-name">Instance name</label>
+      <input class="ep-input" id="ni-name" placeholder="e.g. main, sd, wan, …" autocomplete="off">
+      <div style="font-size:0.65rem;color:#666;margin-top:0.2rem">Lowercase letters, digits, <code style="font-size:0.6rem">-</code> and <code style="font-size:0.6rem">_</code> only.</div>
+    </div>
+
+    <div class="form-row" style="display:flex;align-items:flex-start;gap:0.6rem">
+      <input type="checkbox" id="ni-start" checked style="margin-top:0.2rem">
+      <div>
+        <label for="ni-start" style="font-size:0.78rem;color:#aaa;cursor:pointer">Start instance after init</label>
+        <div style="font-size:0.66rem;color:#666;margin-top:0.15rem;line-height:1.4">
+          Launches ComfyUI as soon as init + deploy finishes.
+        </div>
+      </div>
+    </div>
+
+    <!-- Advanced: runner auto-detects GPU + picks the standalone env by default.
+         Only expand this if you're explicitly overriding (e.g. building on a
+         CPU-only box that will later get a GPU, or working around a driver issue). -->
+    <div class="form-row">
+      <details style="background:var(--bg-3,#161616);border:1px solid var(--border,#222);border-radius:5px;padding:0.5rem 0.7rem">
+        <summary style="cursor:pointer;font-size:0.74rem;color:#aaa;outline:none">
+          Advanced <span style="color:#666;font-size:0.68rem">(GPU variant override, CUDA compat — most users skip this)</span>
+        </summary>
+        <div style="margin-top:0.65rem">
+          <label class="form-label" for="ni-variant">GPU variant</label>
+          <select class="ep-input" id="ni-variant" onchange="window.niVariantChange()">
+            <option value="">Auto-detect (recommended)</option>
+            <option value="linux-nvidia">Linux — NVIDIA</option>
+            <option value="linux-amd">Linux — AMD (ROCm)</option>
+            <option value="linux-intel-xpu">Linux — Intel Arc (XPU)</option>
+            <option value="linux-cpu">Linux — CPU only</option>
+            <option value="win-nvidia">Windows — NVIDIA</option>
+            <option value="win-amd">Windows — AMD</option>
+            <option value="win-cpu">Windows — CPU only</option>
+            <option value="mac-mps">macOS — Apple Silicon (MPS)</option>
+            <option value="mac-cpu">macOS — CPU only</option>
+            <option value="__custom__">Custom variant id…</option>
+          </select>
+          <input class="ep-input" id="ni-variant-custom" placeholder="e.g. linux-nvidia-cu124" style="display:none;margin-top:0.4rem" autocomplete="off">
+
+          <label style="display:flex;align-items:flex-start;gap:0.5rem;margin-top:0.65rem;cursor:pointer">
+            <input type="checkbox" id="ni-cuda-compat" style="margin-top:0.2rem">
+            <span style="font-size:0.74rem;color:#aaa">
+              CUDA compatibility mode
+              <span style="display:block;font-size:0.66rem;color:#666;margin-top:0.15rem;line-height:1.4">
+                Forces a CUDA-compatible torch build for older NVIDIA drivers.
+              </span>
+            </span>
+          </label>
+        </div>
+      </details>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeNewInstance()">Cancel</button>
+      <button class="btn-green" id="ni-create-btn" onclick="submitNewInstance()">⊕ Create</button>
     </div>
   </div>
 </div>

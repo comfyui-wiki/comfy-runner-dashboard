@@ -1,7 +1,11 @@
 import { API, esc } from './utils.js';
 import { renderNodePage } from './endpoints.js';
 
+const LS_LAST_HOST = 'dashboard.lastNode.v1';
+
 let _currentHost = null;
+// Snapshot of last sidebar fetch — used to re-select after async restore.
+let _lastNodes = [];
 
 export function getCurrentHost() { return _currentHost; }
 
@@ -16,11 +20,27 @@ export async function loadNodes() {
       return;
     }
     const data = await res.json();
-    renderSidebar(data.nodes ?? [], data.error ?? null, data.meta ?? null);
+    _lastNodes = data.nodes ?? [];
+    renderSidebar(_lastNodes, data.error ?? null, data.meta ?? null);
+    _restoreLastNode();
   } catch (e) {
     el.innerHTML =
       `<div class="sidebar-diag sidebar-diag-err"><strong>Could not load /api/nodes</strong><br><span class="sidebar-diag-msg">${esc(e.message)}</span></div>`;
   }
+}
+
+// Restore the previously-selected node from localStorage on page load.
+// Only fires if (a) we have a saved host, (b) it's still in the current
+// sidebar list, and (c) the user hasn't already clicked something during
+// the fetch.
+function _restoreLastNode() {
+  if (_currentHost) return;
+  let saved = null;
+  try { saved = localStorage.getItem(LS_LAST_HOST); } catch {}
+  if (!saved) return;
+  const match = _lastNodes.find(n => (n.dns_name || n.hostname) === saved);
+  if (!match) return;
+  selectNode(saved, match.hostname, { skipPersist: true });
 }
 
 function osIcon(os) {
@@ -62,8 +82,11 @@ function renderSidebar(nodes, discoveryError, meta) {
     }).join('');
 }
 
-export async function selectNode(host, label) {
+export async function selectNode(host, label, opts = {}) {
   _currentHost = host;
+  if (!opts.skipPersist) {
+    try { localStorage.setItem(LS_LAST_HOST, host); } catch {}
+  }
   document.querySelectorAll('.node-item').forEach(e => e.classList.remove('active'));
   document.getElementById(`nav-${esc(host)}`)?.classList.add('active');
 
