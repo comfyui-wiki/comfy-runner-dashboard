@@ -226,6 +226,21 @@ function renderInstanceCard(host, inst, info) {
       <button class="btn-ghost btn-sm" onclick="window.openDeploy(${jsArg(host)},'/'+${jsArg(inst.name)}+'/deploy',${jsArg(inst.name)})">⬆ Deploy</button>
       <button class="btn-ghost btn-sm" onclick="window.openLaunchArgs(${jsArg(host)},${jsArg(inst.name)})">⚙ Launch args</button>
       <button class="btn-ghost btn-sm" onclick="window.openModelModal(${jsArg(host)},${jsArg(inst.name)},'download')">⊞ Models</button>
+      <button class="btn-ghost btn-sm inst-more-btn" onclick="window.toggleInstMenu(event, ${jsArg(inst.name)})" title="More actions">⋮</button>
+      <div class="inst-more-menu" id="inst-more-menu-${esc(inst.name)}">
+        <button class="inst-more-item" onclick="window.callEndpoint(${jsArg(host)},'POST','/'+${jsArg(inst.name)}+'/unlock'); window.closeInstMenus()">
+          <span>🔓 Force unlock</span>
+          <span class="inst-more-hint">Release stuck lock (use when ops report "is busy")</span>
+        </button>
+        <button class="inst-more-item" onclick="window.callEndpoint(${jsArg(host)},'GET','/'+${jsArg(inst.name)}+'/logs'); window.closeInstMenus()">
+          <span>📜 View logs</span>
+          <span class="inst-more-hint">Tail recent stdout/stderr</span>
+        </button>
+        <button class="inst-more-item inst-more-item-danger" onclick="window.confirmDeleteInstance(${jsArg(host)}, ${jsArg(inst.name)})">
+          <span>🗑 Delete instance</span>
+          <span class="inst-more-hint">Remove install record (irreversible)</span>
+        </button>
+      </div>
     </div>
 
     <div id="card-resp-${esc(inst.name)}" class="card-resp"></div>

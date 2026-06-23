@@ -225,11 +225,17 @@ button:not(:disabled):active { transform: scale(0.96); }
   padding: 0.95rem 1.05rem;
   transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
   position: relative;
+  z-index: 1;
 }
 .instance-card:hover {
   border-color: #2f2f2f;
   transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+}
+/* Lift the card above its siblings so the ⋮ popover isn't covered by the
+   next card in the grid (DOM order otherwise wins). */
+.instance-card.has-menu-open {
+  z-index: 50;
 }
 .instance-card.is-healthy {
   border-left: 3px solid var(--green);
@@ -384,7 +390,52 @@ button:not(:disabled):active { transform: scale(0.96); }
 /* action buttons row */
 .inst-actions {
   display: flex; gap: 0.35rem; flex-wrap: wrap;
+  position: relative;
 }
+
+/* ⋮ overflow menu — a popover containing rarely-used actions like
+   unlock / view logs / delete. Anchored bottom-right of the actions row. */
+.inst-more-btn {
+  padding: 0.28rem 0.55rem !important;
+  font-size: 0.95rem !important;
+  line-height: 1;
+  color: var(--text-2);
+}
+.inst-more-menu {
+  display: none;
+  position: absolute;
+  right: 0; top: calc(100% + 4px);
+  background: var(--bg-3);
+  border: 1px solid var(--border-2);
+  border-radius: 7px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.55);
+  min-width: 240px;
+  padding: 0.3rem;
+  z-index: 60;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.inst-more-menu.open { display: flex; }
+.inst-more-item {
+  display: flex !important; flex-direction: column;
+  align-items: flex-start !important;
+  gap: 0.15rem !important;
+  width: 100%;
+  background: transparent !important;
+  border: none !important;
+  padding: 0.45rem 0.6rem !important;
+  font-size: 0.72rem !important;
+  color: var(--text-1) !important;
+  text-align: left;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.inst-more-item:hover { background: var(--bg-4) !important; }
+.inst-more-hint {
+  font-size: 0.62rem; color: var(--text-3); font-weight: 400;
+}
+.inst-more-item-danger { color: #fca5a5 !important; }
+.inst-more-item-danger:hover { background: #7f1d1d22 !important; color: #fecaca !important; }
 
 /* health badge */
 .badge {
@@ -686,6 +737,265 @@ button:not(:disabled):active { transform: scale(0.96); }
 }
 .mm-resp.visible { display: block; }
 .mm-resp.error   { color: #f87171; }
+
+/* ── Manage pane — file-browser style (folder sidebar + file list) ───────── */
+
+.mm-mg-toolbar {
+  display: flex; gap: 0.5rem; align-items: center;
+  margin-bottom: 0.55rem;
+}
+.mm-mg-toolbar .ep-input { flex: 1; }
+
+#mm-mg-status {
+  font-size: 0.7rem; color: var(--text-3);
+  margin-bottom: 0.5rem; min-height: 1em;
+}
+#mm-mg-status:empty { display: none; }
+
+.mm-mg-browser {
+  display: grid;
+  grid-template-columns: 168px 1fr;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--bg-2);
+  height: 60vh;
+  min-height: 320px;
+}
+
+/* Folder sidebar */
+.mm-mg-folders {
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 0.35rem 0;
+}
+.mm-mg-folder-item {
+  display: flex; align-items: center; gap: 0.4rem;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.72rem; color: var(--text-2);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: background 0.08s, color 0.08s;
+  user-select: none;
+}
+.mm-mg-folder-item:hover { background: var(--bg-3); color: var(--text-1); }
+.mm-mg-folder-item.active {
+  background: #1e3a8a33;
+  border-left-color: var(--blue);
+  color: #fff;
+}
+.mm-mg-folder-item.is-empty { color: var(--text-3); }
+.mm-mg-folder-item.is-empty .mm-mg-folder-count { opacity: 0.4; }
+
+.mm-mg-folder-icon {
+  font-size: 0.6rem; color: var(--text-3);
+  transition: transform 0.12s ease;
+}
+.mm-mg-folder-item.active .mm-mg-folder-icon {
+  transform: rotate(90deg); color: var(--blue);
+}
+.mm-mg-folder-name {
+  flex: 1;
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 0.7rem; font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mm-mg-folder-count {
+  font-size: 0.6rem;
+  background: var(--bg-4); color: var(--text-3);
+  padding: 0.05rem 0.42rem; border-radius: 8px;
+  min-width: 22px; text-align: center;
+}
+.mm-mg-folder-item.active .mm-mg-folder-count {
+  background: var(--blue); color: #fff;
+}
+.mm-mg-folder-count-unknown {
+  color: var(--text-3) !important;
+  background: transparent !important;
+  font-size: 0.66rem !important;
+}
+.mm-mg-folder-spin {
+  flex-shrink: 0;
+  width: 10px; height: 10px;
+  border: 1.5px solid var(--border-2);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+}
+
+/* File pane */
+.mm-mg-files {
+  overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+.mm-mg-files-header {
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-3);
+  position: sticky; top: 0; z-index: 1;
+}
+.mm-mg-files-title {
+  font-size: 0.75rem; font-weight: 600;
+  color: var(--text-1);
+  font-family: "SF Mono", ui-monospace, monospace;
+}
+.mm-mg-files-meta {
+  font-size: 0.62rem; color: var(--text-3);
+}
+.mm-mg-empty {
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  font-size: 0.72rem; color: var(--text-3);
+  line-height: 1.5;
+}
+
+.mm-mg-rows { padding: 0.25rem 0; }
+.mm-mg-row {
+  display: flex; align-items: center; gap: 0.55rem;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.72rem;
+  border-bottom: 1px solid #141414;
+  transition: background 0.08s;
+  position: relative;
+}
+.mm-mg-row:last-child { border-bottom: none; }
+.mm-mg-row:hover { background: rgba(255,255,255,0.025); }
+.mm-mg-row.is-busy { opacity: 0.55; pointer-events: none; }
+
+/* Used in search-results view to show which folder the hit came from */
+.mm-mg-row-loc {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 0.62rem; color: var(--text-3);
+  background: var(--bg-4);
+  padding: 0.1rem 0.4rem; border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.mm-mg-filename {
+  flex: 1; min-width: 0;
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 0.7rem; color: var(--text-1);
+  /* Allow wrapping at any character so very long model names show in full
+     without truncation. The row grows vertically, keeping the actions
+     vertically centered against the wrapped name. */
+  white-space: normal;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.mm-mg-actions {
+  display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0;
+}
+.mm-mg-arrow {
+  color: var(--text-3); font-size: 0.78rem;
+  margin-right: 0.1rem;
+}
+.mm-mg-dest {
+  width: 130px !important;
+  font-size: 0.66rem !important;
+  padding: 0.2rem 0.4rem !important;
+}
+
+.mm-mg-row-spinner {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  font-size: 0.66rem; color: var(--blue);
+  padding: 0.2rem 0.5rem;
+}
+
+.mm-mg-note {
+  position: absolute;
+  right: 0.85rem; bottom: -0.65rem;
+  font-size: 0.62rem;
+  padding: 0.1rem 0.5rem;
+  background: var(--bg-3);
+  border: 1px solid var(--border-2);
+  border-radius: 4px;
+  z-index: 2;
+}
+
+/* ── Toast notifications ─────────────────────────────────────────────────── */
+
+.mm-toast-container {
+  position: fixed;
+  right: 1.1rem; bottom: 3.5rem;
+  z-index: 200;
+  display: flex; flex-direction: column-reverse;
+  gap: 0.5rem;
+  pointer-events: none;
+}
+.mm-toast {
+  pointer-events: auto;
+  min-width: 280px; max-width: 440px;
+  display: flex; align-items: center; gap: 0.55rem;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.72rem; line-height: 1.4;
+  background: var(--bg-3);
+  border: 1px solid var(--border-2);
+  border-radius: 7px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.5);
+  color: var(--text-1);
+  animation: mm-toast-in 0.18s ease-out;
+}
+.mm-toast strong {
+  font-weight: 600;
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 0.7rem;
+}
+.mm-toast-leaving {
+  animation: mm-toast-out 0.2s ease-in forwards;
+}
+@keyframes mm-toast-in  { from { opacity: 0; transform: translateY(6px); } }
+@keyframes mm-toast-out { to   { opacity: 0; transform: translateY(6px); } }
+
+.mm-toast-msg {
+  flex: 1; min-width: 0;
+  word-break: break-word;
+}
+.mm-toast-icon {
+  flex-shrink: 0;
+  width: 16px; height: 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  font-size: 0.7rem; font-weight: 700;
+}
+.mm-toast-spinner {
+  flex-shrink: 0;
+  width: 14px; height: 14px;
+  border: 2px solid var(--border-2);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+.mm-toast-close {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-3);
+  font-size: 1rem; line-height: 1;
+  padding: 0.1rem 0.35rem !important;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.mm-toast-close:hover { color: var(--text-1); }
+
+.mm-toast-pending {
+  border-color: #1e3a8a;
+}
+.mm-toast-success {
+  border-color: #14532d;
+  background: linear-gradient(180deg, #15803d22 0%, var(--bg-3) 100%);
+}
+.mm-toast-success .mm-toast-icon { background: #15803d; color: #052e16; }
+
+.mm-toast-error {
+  border-color: #7f1d1d;
+  background: linear-gradient(180deg, #7f1d1d22 0%, var(--bg-3) 100%);
+}
+.mm-toast-error .mm-toast-icon { background: var(--red); color: #fff; }
 
 /* ── Misc ────────────────────────────────────────────────────────────────── */
 

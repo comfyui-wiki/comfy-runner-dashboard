@@ -3,7 +3,7 @@ import { loadNodes, selectNode, refreshCurrent } from './nodes.js';
 import { switchTab, runEp } from './endpoints.js';
 import { closeModal, submitModal } from './modals/generic.js';
 import { closeDeploy, dmModeChange, submitDeploy, openDeploy } from './modals/deploy.js';
-import { closeModelModal, mmSwitchTab, mmSelectDir, mmDirSelectChange, mmFileSelected, submitDownload, submitUpload, openModelModal, initDropZone } from './modals/model.js';
+import { closeModelModal, mmSwitchTab, mmSelectDir, mmDirSelectChange, mmFileSelected, submitDownload, submitUpload, openModelModal, initDropZone, mmManageRefresh, mmManageDo, mmManageSelectFolder } from './modals/model.js';
 import { openLaunchArgs, closeLaunchArgs, submitLaunchArgs } from './modals/launch-args.js';
 import { openNewInstance, closeNewInstance, submitNewInstance, niVariantChange } from './modals/new-instance.js';
 
@@ -31,6 +31,9 @@ window.mmDirSelectChange  = mmDirSelectChange;
 window.mmFileSelected     = mmFileSelected;
 window.submitDownload  = submitDownload;
 window.submitUpload    = submitUpload;
+window.mmManageRefresh      = mmManageRefresh;
+window.mmManageDo           = mmManageDo;
+window.mmManageSelectFolder = mmManageSelectFolder;
 
 window.openLaunchArgs  = openLaunchArgs;
 window.closeLaunchArgs = closeLaunchArgs;
@@ -60,6 +63,62 @@ async function doSelfUpdate(force = false) {
 }
 
 window.doSelfUpdate = doSelfUpdate;
+
+// ── Instance card ⋮ menu ────────────────────────────────────────────────────
+
+function closeInstMenus() {
+  document.querySelectorAll('.inst-more-menu.open').forEach(m => m.classList.remove('open'));
+  // Drop the z-index lift on every card so a closed menu can't keep its
+  // host card hovering above its neighbours.
+  document.querySelectorAll('.instance-card.has-menu-open').forEach(c => c.classList.remove('has-menu-open'));
+}
+
+function toggleInstMenu(event, instName) {
+  event.stopPropagation();
+  const id = `inst-more-menu-${instName}`;
+  const menu = document.getElementById(id);
+  if (!menu) return;
+  // Close any other open menus first so only one is visible at a time.
+  document.querySelectorAll('.inst-more-menu.open').forEach(m => {
+    if (m !== menu) m.classList.remove('open');
+  });
+  document.querySelectorAll('.instance-card.has-menu-open').forEach(c => {
+    if (!c.contains(menu)) c.classList.remove('has-menu-open');
+  });
+  const opened = menu.classList.toggle('open');
+  // Mark the host card so its stacking context lifts above sibling cards;
+  // otherwise the next card in DOM order would clip the popover.
+  const card = menu.closest('.instance-card');
+  if (card) card.classList.toggle('has-menu-open', opened);
+}
+
+// Two-step confirmation for destructive delete — calls DELETE /<name> which
+// removes the install record + on-disk files on the runner. Irreversible.
+function confirmDeleteInstance(host, name) {
+  closeInstMenus();
+  const typed = prompt(
+    `This will permanently delete the "${name}" instance and all its files on the runner.\n\n` +
+    `Type the instance name to confirm:`,
+  );
+  if (typed !== name) {
+    if (typed != null) alert('Name did not match — delete cancelled.');
+    return;
+  }
+  callEndpoint(host, 'DELETE', `/${name}`);
+  // Refresh shortly after; the DELETE is sync but we let the runner settle.
+  setTimeout(() => refreshCurrent(), 1500);
+}
+
+window.toggleInstMenu        = toggleInstMenu;
+window.closeInstMenus        = closeInstMenus;
+window.confirmDeleteInstance = confirmDeleteInstance;
+
+// Dismiss any open ⋮ menu on outside click.
+document.addEventListener('click', e => {
+  if (!e.target.closest('.inst-more-menu') && !e.target.closest('.inst-more-btn')) {
+    closeInstMenus();
+  }
+});
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 

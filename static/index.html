@@ -62,7 +62,7 @@
 
 <!-- Model modal -->
 <div class="modal-overlay" id="model-modal">
-  <div class="modal" style="width:500px">
+  <div class="modal mm-modal" id="mm-modal-box" style="width:640px;max-width:96vw">
     <div class="modal-title">Models</div>
     <div style="font-size:0.75rem;color:#555;margin-bottom:1rem">
       Instance: <span id="mm-instance" style="color:#aaa"></span>
@@ -71,6 +71,7 @@
     <div class="mm-tabs">
       <div class="mm-tab active" onclick="mmSwitchTab('download')">⬇ Download from URL</div>
       <div class="mm-tab" onclick="mmSwitchTab('upload')">⬆ Upload file</div>
+      <div class="mm-tab" onclick="mmSwitchTab('manage')">⇄ Manage</div>
     </div>
 
     <!-- Download pane -->
@@ -124,6 +125,22 @@
       <div class="modal-footer">
         <button class="btn-ghost" onclick="closeModelModal()">Cancel</button>
         <button class="btn-blue" id="mm-ul-btn" onclick="submitUpload()">⬆ Upload</button>
+      </div>
+    </div>
+
+    <!-- Manage pane — file-browser style: folder sidebar + file pane -->
+    <div class="mm-pane" id="mm-pane-manage">
+      <div class="mm-mg-toolbar">
+        <input class="ep-input" id="mm-mg-filter" placeholder="Search files (across all folders)…" autocomplete="off">
+        <button class="btn-ghost btn-sm" id="mm-mg-refresh" onclick="window.mmManageRefresh()">↻ Refresh</button>
+      </div>
+      <div id="mm-mg-status"></div>
+      <div class="mm-mg-browser" id="mm-mg-browser">
+        <aside class="mm-mg-folders" id="mm-mg-folders"></aside>
+        <section class="mm-mg-files" id="mm-mg-files"></section>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="closeModelModal()">Close</button>
       </div>
     </div>
   </div>
