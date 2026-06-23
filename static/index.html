@@ -77,26 +77,20 @@
     <!-- Download pane -->
     <div class="mm-pane active" id="mm-pane-download">
       <div class="form-row">
-        <label class="form-label">Model URL <span style="color:#555">(direct download link)</span></label>
-        <input class="ep-input" id="mm-url" placeholder="https://huggingface.co/.../model.safetensors">
+        <div class="mm-dl-queue-header">
+          <label class="form-label">Download queue <span style="color:#555">(one URL + folder per entry)</span></label>
+          <button type="button" class="btn-ghost btn-sm" onclick="window.mmDlAddEntry()">+ Add entry</button>
+        </div>
+        <div id="mm-dl-queue" class="mm-dl-queue"></div>
       </div>
       <div class="form-row">
-        <label class="form-label">Directory</label>
-        <select class="ep-input" id="mm-dl-dir-select" onchange="window.mmDirSelectChange('download')"></select>
-        <input class="ep-input" id="mm-dl-dir-custom" placeholder="custom folder name (e.g. ipadapter)" style="display:none;margin-top:0.4rem">
-      </div>
-      <div class="form-row">
-        <label class="form-label">Filename <span style="color:#555">(optional, auto-detected from URL)</span></label>
-        <input class="ep-input" id="mm-dl-name" placeholder="leave blank to auto-detect">
-      </div>
-      <div class="form-row">
-        <label class="form-label">HuggingFace token <span style="color:#555">(optional, for private models)</span></label>
+        <label class="form-label">HuggingFace token <span style="color:#555">(optional, shared by all entries)</span></label>
         <input class="ep-input" id="mm-dl-token" type="password" placeholder="hf_…">
       </div>
-      <div id="mm-dl-resp" class="resp-box" style="margin-top:0.75rem"></div>
+      <div id="mm-dl-resp" class="mm-resp"></div>
       <div class="modal-footer">
         <button class="btn-ghost" onclick="closeModelModal()">Cancel</button>
-        <button class="btn-green" id="mm-dl-btn" onclick="submitDownload()">⬇ Download</button>
+        <button class="btn-green" id="mm-dl-btn" onclick="submitDownload()">⬇ Download all</button>
       </div>
     </div>
 

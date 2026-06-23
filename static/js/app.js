@@ -3,7 +3,7 @@ import { loadNodes, selectNode, refreshCurrent } from './nodes.js';
 import { switchTab, runEp } from './endpoints.js';
 import { closeModal, submitModal } from './modals/generic.js';
 import { closeDeploy, dmModeChange, submitDeploy, openDeploy } from './modals/deploy.js';
-import { closeModelModal, mmSwitchTab, mmSelectDir, mmDirSelectChange, mmFileSelected, submitDownload, submitUpload, openModelModal, initDropZone, mmManageRefresh, mmManageDo, mmManageSelectFolder } from './modals/model.js';
+import { closeModelModal, mmSwitchTab, mmSelectDir, mmDirSelectChange, mmFileSelected, submitDownload, submitUpload, openModelModal, initDropZone, mmManageRefresh, mmManageDo, mmManageSelectFolder, mmDlAddEntry, mmDlRemoveEntry, mmDlDirChange } from './modals/model.js';
 import { openLaunchArgs, closeLaunchArgs, submitLaunchArgs } from './modals/launch-args.js';
 import { openNewInstance, closeNewInstance, submitNewInstance, niVariantChange } from './modals/new-instance.js';
 
@@ -31,6 +31,9 @@ window.mmDirSelectChange  = mmDirSelectChange;
 window.mmFileSelected     = mmFileSelected;
 window.submitDownload  = submitDownload;
 window.submitUpload    = submitUpload;
+window.mmDlAddEntry    = mmDlAddEntry;
+window.mmDlRemoveEntry = mmDlRemoveEntry;
+window.mmDlDirChange   = mmDlDirChange;
 window.mmManageRefresh      = mmManageRefresh;
 window.mmManageDo           = mmManageDo;
 window.mmManageSelectFolder = mmManageSelectFolder;

@@ -735,8 +735,43 @@ button:not(:disabled):active { transform: scale(0.96); }
   white-space: pre-wrap; word-break: break-all;
   display: none;
 }
+#mm-dl-resp { max-height: 200px; }
 .mm-resp.visible { display: block; }
 .mm-resp.error   { color: #f87171; }
+
+/* ── Download queue (multi-entry batch) ─────────────────────────────────── */
+
+.mm-dl-queue-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.5rem; margin-bottom: 0.55rem;
+}
+.mm-dl-queue {
+  display: flex; flex-direction: column; gap: 0.55rem;
+  max-height: 280px; overflow-y: auto;
+}
+.mm-dl-entry {
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.65rem 0.7rem; background: var(--bg-2);
+}
+.mm-dl-entry-top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 0.45rem;
+}
+.mm-dl-entry-num {
+  font-size: 0.68rem; font-weight: 600; color: var(--text-3);
+  letter-spacing: 0.03em;
+}
+.mm-dl-remove {
+  min-width: 1.6rem; padding: 0.1rem 0.35rem;
+  font-size: 1rem; line-height: 1; color: var(--text-3);
+}
+.mm-dl-remove:disabled { opacity: 0.25; cursor: default; }
+.mm-dl-entry .mm-dl-url { width: 100%; margin-bottom: 0.4rem; }
+.mm-dl-entry-meta {
+  display: grid; grid-template-columns: minmax(120px, 38%) 1fr;
+  gap: 0.4rem; align-items: center;
+}
+.mm-dl-entry .mm-dl-custom { width: 100%; }
 
 /* ── Manage pane — file-browser style (folder sidebar + file list) ───────── */
 

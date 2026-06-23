@@ -18,6 +18,7 @@ const CUSTOM_DIR_VALUE = '__custom__';
 let _mmHost = null;
 let _mmInst = null;
 let _mmFile = null;
+let _mmDlEntrySeq = 0;
 
 // State for the Manage tab. Cached across tab switches so the list doesn't
 // re-fetch on every flick between Download/Upload/Manage. Cleared whenever
@@ -59,10 +60,11 @@ export function openModelModal(host, instName, tab = 'download') {
 
   document.getElementById('mm-instance').textContent = instName;
 
-  ['mm-url', 'mm-dl-name', 'mm-dl-token', 'mm-ul-name',
-   'mm-dl-dir-custom', 'mm-ul-dir-custom'].forEach(id => {
+  ['mm-dl-token', 'mm-ul-name', 'mm-ul-dir-custom'].forEach(id => {
     document.getElementById(id).value = '';
   });
+
+  _resetDownloadQueue();
 
   const zone = document.getElementById('mm-drop-zone');
   zone.textContent = 'Click to select or drag & drop a model file';
@@ -77,7 +79,6 @@ export function openModelModal(host, instName, tab = 'download') {
     el.textContent = '';
   });
 
-  _renderDirSelect('mm-dl-dir-select', 'mm-dl-dir-custom');
   _renderDirSelect('mm-ul-dir-select', 'mm-ul-dir-custom');
 
   mmSwitchTab(tab);
@@ -102,7 +103,9 @@ export function mmSwitchTab(tab) {
   // panes have short forms and stay tight at 640px.
   const box = document.getElementById('mm-modal-box');
   if (box) {
-    box.style.width = tab === 'manage' ? '1080px' : '640px';
+    if (tab === 'manage') box.style.width = '1080px';
+    else if (tab === 'download') box.style.width = '720px';
+    else box.style.width = '640px';
   }
 
   if (tab === 'manage') {
@@ -112,8 +115,9 @@ export function mmSwitchTab(tab) {
 }
 
 export function mmDirSelectChange(pane) {
-  const sel = document.getElementById(pane === 'download' ? 'mm-dl-dir-select' : 'mm-ul-dir-select');
-  const custom = document.getElementById(pane === 'download' ? 'mm-dl-dir-custom' : 'mm-ul-dir-custom');
+  const sel = document.getElementById(pane === 'upload' ? 'mm-ul-dir-select' : null);
+  const custom = document.getElementById(pane === 'upload' ? 'mm-ul-dir-custom' : null);
+  if (!sel || !custom) return;
   const isCustom = sel.value === CUSTOM_DIR_VALUE;
   custom.style.display = isCustom ? 'block' : 'none';
   if (isCustom) custom.focus();
@@ -148,11 +152,134 @@ function _renderDirSelect(selectId, customId) {
 }
 
 function _resolveDir(pane) {
-  const sel = document.getElementById(pane === 'download' ? 'mm-dl-dir-select' : 'mm-ul-dir-select');
+  const sel = document.getElementById('mm-ul-dir-select');
   if (sel.value === CUSTOM_DIR_VALUE) {
-    return document.getElementById(pane === 'download' ? 'mm-dl-dir-custom' : 'mm-ul-dir-custom').value.trim();
+    return document.getElementById('mm-ul-dir-custom').value.trim();
   }
   return sel.value;
+}
+
+function _escAttr(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function _dirSelectOptions(selected) {
+  const opts = MODEL_DIRS.map(d =>
+    `<option value="${d}"${d === selected ? ' selected' : ''}>${d}</option>`
+  ).join('');
+  return `${opts}<option value="${CUSTOM_DIR_VALUE}">Custom…</option>`;
+}
+
+function _resetDownloadQueue() {
+  _mmDlEntrySeq = 0;
+  const queue = document.getElementById('mm-dl-queue');
+  if (queue) {
+    queue.innerHTML = '';
+    mmDlAddEntry();
+  }
+  _updateDownloadBtnLabel();
+}
+
+function _mmDlRenumber() {
+  document.querySelectorAll('#mm-dl-queue .mm-dl-entry').forEach((el, i) => {
+    const num = el.querySelector('.mm-dl-entry-num');
+    if (num) num.textContent = `#${i + 1}`;
+  });
+}
+
+function _mmDlUpdateRemoveButtons() {
+  const rows = document.querySelectorAll('#mm-dl-queue .mm-dl-entry');
+  const solo = rows.length <= 1;
+  rows.forEach(row => {
+    const btn = row.querySelector('.mm-dl-remove');
+    if (btn) btn.disabled = solo;
+  });
+  _updateDownloadBtnLabel();
+}
+
+function _updateDownloadBtnLabel() {
+  const btn = document.getElementById('mm-dl-btn');
+  if (!btn || btn.disabled) return;
+  const n = document.querySelectorAll('#mm-dl-queue .mm-dl-entry').length;
+  btn.textContent = n > 1 ? `⬇ Download all (${n})` : '⬇ Download';
+}
+
+export function mmDlAddEntry(values = {}) {
+  const container = document.getElementById('mm-dl-queue');
+  if (!container) return;
+
+  const id = ++_mmDlEntrySeq;
+  const dir = values.directory || MODEL_DIRS[0];
+  const isCustom = dir && !MODEL_DIRS.includes(dir);
+  const selVal = isCustom ? CUSTOM_DIR_VALUE : dir;
+
+  const el = document.createElement('div');
+  el.className = 'mm-dl-entry';
+  el.dataset.entryId = String(id);
+  el.innerHTML = `
+    <div class="mm-dl-entry-top">
+      <span class="mm-dl-entry-num">#1</span>
+      <button type="button" class="btn-ghost btn-sm mm-dl-remove" onclick="window.mmDlRemoveEntry(this)" title="Remove entry">×</button>
+    </div>
+    <input class="ep-input mm-dl-url" placeholder="https://…/model.safetensors" value="${_escAttr(values.url || '')}">
+    <div class="mm-dl-entry-meta">
+      <select class="ep-input mm-dl-dir" onchange="window.mmDlDirChange(this)">${_dirSelectOptions(isCustom ? MODEL_DIRS[0] : dir)}</select>
+      <input class="ep-input mm-dl-name" placeholder="Filename (optional)" value="${_escAttr(values.name || '')}">
+    </div>
+    <input class="ep-input mm-dl-custom" placeholder="Custom folder name (e.g. ipadapter)" style="display:${isCustom ? 'block' : 'none'};margin-top:0.4rem" value="${_escAttr(isCustom ? dir : '')}">`;
+
+  const sel = el.querySelector('.mm-dl-dir');
+  sel.value = selVal;
+  container.appendChild(el);
+  _mmDlRenumber();
+  _mmDlUpdateRemoveButtons();
+}
+
+export function mmDlRemoveEntry(btn) {
+  const container = document.getElementById('mm-dl-queue');
+  const row = btn?.closest('.mm-dl-entry');
+  if (!container || !row || container.children.length <= 1) return;
+  row.remove();
+  _mmDlRenumber();
+  _mmDlUpdateRemoveButtons();
+}
+
+export function mmDlDirChange(selectEl) {
+  const entry = selectEl.closest('.mm-dl-entry');
+  if (!entry) return;
+  const custom = entry.querySelector('.mm-dl-custom');
+  const isCustom = selectEl.value === CUSTOM_DIR_VALUE;
+  custom.style.display = isCustom ? 'block' : 'none';
+  if (isCustom) custom.focus();
+}
+
+function _resolveDlRowDir(row) {
+  const sel = row.querySelector('.mm-dl-dir');
+  if (sel.value === CUSTOM_DIR_VALUE) {
+    return row.querySelector('.mm-dl-custom').value.trim();
+  }
+  return sel.value;
+}
+
+function _collectDownloadEntries() {
+  const rows = document.querySelectorAll('#mm-dl-queue .mm-dl-entry');
+  if (!rows.length) return { ok: false, error: 'Add at least one download entry.' };
+
+  const items = [];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const url = row.querySelector('.mm-dl-url').value.trim();
+    const directory = _resolveDlRowDir(row);
+    const name = row.querySelector('.mm-dl-name').value.trim();
+    if (!url) return { ok: false, error: `Entry #${i + 1}: URL is required.` };
+    if (!directory) return { ok: false, error: `Entry #${i + 1}: Directory is required.` };
+    const item = { url, directory };
+    if (name) item.name = name;
+    items.push(item);
+  }
+  return { ok: true, items };
 }
 
 function _showResp(pane, text, isError) {
@@ -162,57 +289,57 @@ function _showResp(pane, text, isError) {
   el.className = `mm-resp visible${isError ? ' error' : ''}`;
 }
 
-// Poll /job/<id> every 2s until the job leaves the 'running' state. No
-// arbitrary iteration cap — large model downloads can run for hours, and
-// silently giving up while bytes are still flying makes the UI lie about
-// completion. Stop conditions: terminal status (done/error/cancelled),
-// hard wall-clock timeout, or transport failure.
-async function _pollJob(jobId, pane) {
+// Poll /job/<id> every 2s until the job leaves the 'running' state.
+// Pass { pane } to mirror progress into the download/upload resp box, or
+// { onProgress(text, isError) } for batch mode. Returns a terminal summary.
+async function _pollJob(jobId, opts = {}) {
+  const { pane, onProgress } = opts;
+  const show = (text, isError) => {
+    if (onProgress) onProgress(text, isError);
+    else if (pane) _showResp(pane, text, isError);
+  };
+
   const HARD_TIMEOUT_MS = 6 * 60 * 60 * 1000; // 6h — covers multi-GB pulls
   const start = Date.now();
 
   while (true) {
     if (Date.now() - start > HARD_TIMEOUT_MS) {
-      _showResp(pane, `Job ${jobId} still running after 6h — stopped polling.\nRecover via GET /job/${jobId}.`, true);
-      return;
+      const text = `Job ${jobId} still running after 6h — stopped polling.\nRecover via GET /job/${jobId}.`;
+      show(text, true);
+      return { ok: false, isError: true, text };
     }
     await new Promise(r => setTimeout(r, 2000));
 
     let data;
     try {
-      const r = await fetch(`${API}/api/proxy/${encodeURIComponent(_mmHost)}/job/${jobId}`);
+      const r = await fetch(`${API}/api/proxy/${encodeURIComponent(_mmHost)}/job/${encodeURIComponent(jobId)}`);
       data = await r.json();
       if (!r.ok) {
-        _showResp(pane, `Job poll failed (HTTP ${r.status}):\n${JSON.stringify(data, null, 2)}`, true);
-        return;
+        const text = `Job poll failed (HTTP ${r.status}):\n${JSON.stringify(data, null, 2)}`;
+        show(text, true);
+        return { ok: false, isError: true, text };
       }
     } catch (e) {
-      _showResp(pane, `Job poll error: ${e.message}`, true);
-      return;
+      const text = `Job poll error: ${e.message}`;
+      show(text, true);
+      return { ok: false, isError: true, text };
     }
 
     const status = data.status || '';
-    // Server stores raw stdout chunks under 'output' (not 'output_lines'),
-    // already split by line. Take the last few for tailing.
     const out = Array.isArray(data.output) ? data.output : [];
     const tail = out.slice(-5).join('').replace(/\n+$/, '');
 
     if (status === 'done') {
-      // 'done' from the job tracker only means the worker thread didn't
-      // throw — download_models() catches HTTP 4xx/5xx and stuffs them
-      // into result.errors / result.failed, so we MUST inspect the
-      // result payload here instead of blindly saying "Done!".
       const summary = _summarizeDownloadResult(data.result, tail);
-      _showResp(pane, summary.text, summary.isError);
-      return;
+      show(summary.text, summary.isError);
+      return { ok: !summary.isError, isError: summary.isError, text: summary.text, result: data.result };
     }
-    // Server emits 'error' for failures and 'cancelled' for user-cancels;
-    // 'failed' was the wrong field name in the previous implementation.
     if (status === 'error' || status === 'cancelled') {
-      _showResp(pane, `${status === 'cancelled' ? 'Cancelled' : 'Failed'}: ${data.error || ''}\n${tail}`, true);
-      return;
+      const text = `${status === 'cancelled' ? 'Cancelled' : 'Failed'}: ${data.error || ''}\n${tail}`;
+      show(text, true);
+      return { ok: false, isError: true, text };
     }
-    _showResp(pane, `[${status || 'running'}]\n${tail || '(no output yet)'}`, false);
+    show(`[${status || 'running'}]\n${tail || '(no output yet)'}`, false);
   }
 }
 
@@ -279,46 +406,95 @@ function _summarizeDownloadResult(result, tail) {
   return { text: lines.join('\n'), isError: false };
 }
 
+function _entryLabel(item) {
+  const tail = item.name || item.url.split('/').pop()?.split('?')[0] || item.url;
+  return `${item.directory}/${tail}`;
+}
+
 export async function submitDownload() {
-  const url   = document.getElementById('mm-url').value.trim();
-  const dir   = _resolveDir('download');
-  const name  = document.getElementById('mm-dl-name').value.trim();
-  const token = document.getElementById('mm-dl-token').value.trim();
-
-  if (!url) { _showResp('download', 'URL is required', true); return; }
-  if (!dir) { _showResp('download', 'Directory is required', true); return; }
-
-  const btn = document.getElementById('mm-dl-btn');
-  btn.disabled = true; btn.textContent = '⏳ Starting…';
-  _showResp('download', '…', false);
-
-  const body = { url, directory: dir };
-  if (name)  body.name  = name;
-  if (token) body.token = token;
-
-  try {
-    const r = await fetch(`${API}/api/proxy/${encodeURIComponent(_mmHost)}/${_mmInst}/download-model`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const data = await r.json();
-    if (data.skipped) {
-      _showResp('download', `Already exists: ${data.name}`, false);
-    } else if (data.job_id) {
-      _showResp('download', `Download started (job ${data.job_id})\nPolling progress…`, false);
-      btn.textContent = '⏳ Downloading…';
-      // Await the poll so the button stays disabled / labelled until the
-      // job actually reaches a terminal status.
-      await _pollJob(data.job_id, 'download');
-    } else {
-      _showResp('download', JSON.stringify(data, null, 2), !r.ok);
-    }
-  } catch (e) {
-    _showResp('download', `Error: ${e.message}`, true);
-  } finally {
-    btn.disabled = false; btn.textContent = '⬇ Download';
+  const collected = _collectDownloadEntries();
+  if (!collected.ok) {
+    _showResp('download', collected.error, true);
+    return;
   }
+
+  const items = collected.items;
+  const token = document.getElementById('mm-dl-token').value.trim();
+  const btn = document.getElementById('mm-dl-btn');
+  const batch = items.length > 1;
+  const log = [];
+
+  btn.disabled = true;
+  btn.textContent = batch ? '⏳ Downloading…' : '⏳ Starting…';
+  _showResp('download', batch ? `Queued ${items.length} downloads…` : '…', false);
+
+  let anyError = false;
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const label = _entryLabel(item);
+    const prefix = batch ? `[${i + 1}/${items.length}] ` : '';
+    log.push(`${prefix}${label} — starting…`);
+    _showResp('download', log.join('\n'), false);
+
+    const body = { url: item.url, directory: item.directory };
+    if (item.name) body.name = item.name;
+    if (token) body.token = token;
+
+    try {
+      const r = await fetch(
+        `${API}/api/proxy/${encodeURIComponent(_mmHost)}/${encodeURIComponent(_mmInst)}/download-model`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+      );
+      const data = await r.json();
+
+      if (data.skipped) {
+        log[log.length - 1] = `${prefix}${label} — skipped (already exists)`;
+        _showResp('download', log.join('\n'), false);
+        continue;
+      }
+
+      if (!r.ok || !data.job_id) {
+        anyError = true;
+        const err = data.error || JSON.stringify(data);
+        log[log.length - 1] = `${prefix}${label} — ✗ ${err}`;
+        _showResp('download', log.join('\n'), true);
+        continue;
+      }
+
+      log[log.length - 1] = `${prefix}${label} — downloading (job ${data.job_id})…`;
+      const header = log.join('\n');
+      const poll = await _pollJob(data.job_id, {
+        onProgress: (text, isError) => {
+          _showResp('download', `${header}\n\n${text}`, isError);
+        },
+      });
+
+      if (poll.isError) {
+        anyError = true;
+        log[log.length - 1] = `${prefix}${label} — ✗ failed`;
+      } else {
+        log[log.length - 1] = `${prefix}${label} — ✓ done`;
+      }
+      _showResp('download', log.join('\n'), anyError);
+    } catch (e) {
+      anyError = true;
+      log[log.length - 1] = `${prefix}${label} — ✗ ${e.message}`;
+      _showResp('download', log.join('\n'), true);
+    }
+  }
+
+  if (batch) {
+    log.push('', anyError ? 'Batch finished with errors.' : '✓ Batch complete.');
+    _showResp('download', log.join('\n'), anyError);
+  }
+
+  btn.disabled = false;
+  _updateDownloadBtnLabel();
 }
 
 export async function submitUpload() {
