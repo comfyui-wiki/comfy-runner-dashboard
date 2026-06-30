@@ -2,6 +2,7 @@ import { API, esc, fmtUptime, callEndpoint } from './utils.js';
 import { openModal } from './modals/generic.js';
 import { openDeploy } from './modals/deploy.js';
 import { openModelModal } from './modals/model.js';
+import { openTunnel } from './modals/tunnel.js';
 
 // Safely embed an arbitrary string as a JS argument inside an HTML on* attribute.
 // JSON.stringify gives us a valid JS string literal; esc() then makes it safe
@@ -48,6 +49,8 @@ const ENDPOINTS = [
   { section: 'Global', method: 'GET',    path: '/startup-log',   desc: 'Tail server startup log (?lines=N)' },
   { section: 'Global', method: 'GET',    path: '/tailnet/runners', desc: 'Auto-discover comfy-runners on tailnet' },
   { section: 'Global', method: 'POST',   path: '/pods/self-update', desc: 'Fan out self-update across tailnet', hasBody: true },
+  { section: 'Global', method: 'GET',    path: '/tunnel/config',    desc: 'View ngrok tunnel config (?provider=ngrok)' },
+  { section: 'Global', method: 'PUT',    path: '/tunnel/config',    desc: 'Update ngrok tunnel config', hasBody: true },
   { section: 'Global', method: 'GET',    path: '/openapi.json', desc: 'OpenAPI schema of this runner' },
   // Instance
   { section: 'Instance', method: 'GET',    path: '/{name}/status',        desc: 'Instance status' },
@@ -63,8 +66,8 @@ const ENDPOINTS = [
   { section: 'Instance', method: 'POST',   path: '/{name}/rename',        desc: 'Rename installation', hasBody: true },
   { section: 'Instance', method: 'POST',   path: '/{name}/unlock',        desc: 'Force-release stuck lock' },
   { section: 'Instance', method: 'DELETE', path: '/{name}',               desc: 'Remove installation' },
-  { section: 'Instance', method: 'POST',   path: '/{name}/tunnel/start',  desc: 'Start Tailscale tunnel for instance', hasBody: true },
-  { section: 'Instance', method: 'POST',   path: '/{name}/tunnel/stop',   desc: 'Stop Tailscale tunnel for instance' },
+  { section: 'Instance', method: 'POST',   path: '/{name}/tunnel/start',  desc: 'Start ngrok or Tailscale tunnel', hasBody: true },
+  { section: 'Instance', method: 'POST',   path: '/{name}/tunnel/stop',   desc: 'Stop active tunnel' },
   // Nodes
   { section: 'Nodes', method: 'GET',  path: '/{name}/nodes', desc: 'List custom nodes' },
   { section: 'Nodes', method: 'POST', path: '/{name}/nodes', desc: 'Custom node action', hasBody: true },
@@ -225,6 +228,7 @@ function renderInstanceCard(host, inst, info) {
       <button class="btn-ghost btn-sm" onclick="window.callEndpoint(${jsArg(host)},'POST','/'+${jsArg(inst.name)}+'/restart')">↺ Restart</button>
       <button class="btn-ghost btn-sm" onclick="window.openDeploy(${jsArg(host)},'/'+${jsArg(inst.name)}+'/deploy',${jsArg(inst.name)})">⬆ Deploy</button>
       <button class="btn-ghost btn-sm" onclick="window.openLaunchArgs(${jsArg(host)},${jsArg(inst.name)})">⚙ Launch args</button>
+      <button class="btn-ghost btn-sm" onclick="window.openTunnel(${jsArg(host)},${jsArg(inst.name)},${jsArg(tunnelUrl || '')})">🌐 Tunnel</button>
       <button class="btn-ghost btn-sm" onclick="window.openModelModal(${jsArg(host)},${jsArg(inst.name)},'download')">⊞ Models</button>
       <button class="btn-ghost btn-sm inst-more-btn" onclick="window.toggleInstMenu(event, ${jsArg(inst.name)})" title="More actions">⋮</button>
       <div class="inst-more-menu" id="inst-more-menu-${esc(inst.name)}">
@@ -341,6 +345,9 @@ export function runEp(host, method, pathTpl, pathId, hasBody) {
   if (hasBody && resolvedPath.endsWith('/deploy')) {
     const instName = resolvedPath.split('/')[1] || '';
     openDeploy(host, resolvedPath, instName);
+  } else if (hasBody && resolvedPath.endsWith('/tunnel/start')) {
+    const instName = resolvedPath.split('/')[1] || '';
+    openTunnel(host, instName, '');
   } else if (hasBody && (resolvedPath.endsWith('/download-model') || resolvedPath.endsWith('/upload-model'))) {
     const instName = resolvedPath.split('/')[1] || '';
     const tab = resolvedPath.endsWith('/upload-model') ? 'upload' : 'download';

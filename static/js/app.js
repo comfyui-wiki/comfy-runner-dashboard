@@ -6,6 +6,8 @@ import { closeDeploy, dmModeChange, submitDeploy, openDeploy } from './modals/de
 import { closeModelModal, mmSwitchTab, mmSelectDir, mmDirSelectChange, mmFileSelected, submitDownload, submitUpload, openModelModal, initDropZone, mmManageRefresh, mmManageDo, mmManageSelectFolder, mmDlAddEntry, mmDlRemoveEntry, mmDlDirChange } from './modals/model.js';
 import { openLaunchArgs, closeLaunchArgs, submitLaunchArgs } from './modals/launch-args.js';
 import { openNewInstance, closeNewInstance, submitNewInstance, niVariantChange } from './modals/new-instance.js';
+import { openTunnel, closeTunnel, submitTunnelStart, submitTunnelStop } from './modals/tunnel.js';
+import { openNgrokConfig, closeNgrokConfig, ngAddDomain, ngRemoveDomain, submitNgrokConfig } from './modals/ngrok-config.js';
 
 // ── Expose to HTML onclick handlers ──────────────────────────────────────────
 
@@ -46,6 +48,17 @@ window.openNewInstance    = openNewInstance;
 window.closeNewInstance   = closeNewInstance;
 window.submitNewInstance  = submitNewInstance;
 window.niVariantChange    = niVariantChange;
+
+window.openTunnel         = openTunnel;
+window.closeTunnel        = closeTunnel;
+window.submitTunnelStart  = submitTunnelStart;
+window.submitTunnelStop   = submitTunnelStop;
+
+window.openNgrokConfig    = openNgrokConfig;
+window.closeNgrokConfig   = closeNgrokConfig;
+window.ngAddDomain        = ngAddDomain;
+window.ngRemoveDomain     = ngRemoveDomain;
+window.submitNgrokConfig  = submitNgrokConfig;
 
 window.toggleJobConsole = toggleJobConsole;
 window.clearJobConsole  = clearJobConsole;

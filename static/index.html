@@ -28,9 +28,11 @@
     <div class="page-title-wrap">
       <div class="page-title" id="page-title">Select a node</div>
       <div class="page-host" id="page-sub">–</div>
+      <div class="page-hw" id="page-hw"></div>
     </div>
     <div class="header-actions">
       <button class="btn-ghost" onclick="refreshCurrent()">↻ Refresh</button>
+      <button class="btn-ghost" id="btn-ngrok-config" onclick="openNgrokConfig()" style="display:none" title="Configure ngrok authtoken and domain pool on this node">⚙ ngrok</button>
       <button class="btn-subtle" id="btn-update" onclick="doSelfUpdate(false)" style="display:none">⬆ Self-update</button>
       <button class="btn-subtle btn-subtle-danger" id="btn-update-force" onclick="doSelfUpdate(true)" style="display:none" title="Force reset --hard to origin/main">⬆ Force-update</button>
     </div>
@@ -359,6 +361,82 @@
     <div class="modal-footer">
       <button class="btn-ghost" onclick="closeNewInstance()">Cancel</button>
       <button class="btn-green" id="ni-create-btn" onclick="submitNewInstance()">⊕ Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tunnel modal — start/stop ngrok or Tailscale tunnel for an instance -->
+<div class="modal-overlay" id="tunnel-modal">
+  <div class="modal" style="width:480px">
+    <div class="modal-title">Instance tunnel</div>
+    <div style="font-size:0.75rem;color:#555;margin-bottom:0.75rem;line-height:1.45">
+      Instance <span id="tn-instance" style="color:#aaa"></span> —
+      exposes the ComfyUI port publicly. Requires the runner to be started with
+      <code style="font-size:0.68rem">--tunnels</code>.
+    </div>
+    <div id="tn-status" style="font-size:0.72rem;color:#888;margin-bottom:0.85rem;padding:0.5rem 0.65rem;background:var(--bg-3,#161616);border:1px solid var(--border,#222);border-radius:5px"></div>
+
+    <div class="form-row">
+      <label class="form-label">Provider</label>
+      <div style="display:flex;gap:0.75rem">
+        <label style="display:flex;align-items:center;gap:0.35rem;font-size:0.78rem;color:#aaa;cursor:pointer">
+          <input type="radio" name="tn-provider" value="ngrok" checked> ngrok
+        </label>
+        <label style="display:flex;align-items:center;gap:0.35rem;font-size:0.78rem;color:#aaa;cursor:pointer">
+          <input type="radio" name="tn-provider" value="tailscale"> Tailscale funnel
+        </label>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label" for="tn-domain">Domain <span style="color:#555">(optional — ngrok only, overrides pool)</span></label>
+      <input class="ep-input" id="tn-domain" placeholder="e.g. myapp.ngrok-free.app" autocomplete="off">
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeTunnel()">Cancel</button>
+      <button class="btn-red btn-sm" onclick="submitTunnelStop()">Stop tunnel</button>
+      <button class="btn-green" onclick="submitTunnelStart()">Start tunnel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ngrok config — node-level authtoken / domain pool -->
+<div class="modal-overlay" id="ngrok-config-modal">
+  <div class="modal" style="width:520px">
+    <div class="modal-title">ngrok configuration</div>
+    <div style="font-size:0.74rem;color:#666;margin-bottom:1rem;line-height:1.45">
+      Saved on <span id="ng-host" style="color:#aaa"></span> in
+      <code style="font-size:0.65rem">~/.comfy-runner/config.json</code>.
+      Configure once per node; then start tunnels from instance cards.
+    </div>
+
+    <div class="form-row">
+      <label class="form-label" for="ng-authtoken">Authtoken</label>
+      <input class="ep-input" id="ng-authtoken" type="password" placeholder="From ngrok dashboard" autocomplete="off">
+      <div id="ng-token-hint" style="font-size:0.68rem;color:#666;margin-top:0.35rem"></div>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label" for="ng-region">Region <span style="color:#555">(optional)</span></label>
+      <input class="ep-input" id="ng-region" placeholder="e.g. us, eu, ap" autocomplete="off">
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Domain pool</label>
+      <div id="ng-domains-list" class="ng-domains-list"></div>
+      <div style="display:flex;gap:0.4rem;margin-top:0.45rem">
+        <input class="ep-input" id="ng-add-domain" placeholder="e.g. comfy-1.ngrok-free.app" autocomplete="off" style="flex:1">
+        <button type="button" class="btn-ghost btn-sm" onclick="ngAddDomain()">+ Add</button>
+      </div>
+      <div style="font-size:0.68rem;color:#666;margin-top:0.35rem;line-height:1.4">
+        Reserved domains are auto-allocated per instance. Leave empty for random ngrok URLs.
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeNgrokConfig()">Cancel</button>
+      <button class="btn-green" id="ng-save-btn" onclick="submitNgrokConfig()">Save</button>
     </div>
   </div>
 </div>

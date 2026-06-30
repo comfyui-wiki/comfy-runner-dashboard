@@ -42,7 +42,7 @@ function _instFromPath(path) {
   const head = m[1];
   const GLOBAL = new Set([
     'status', 'installations', 'system-info', 'jobs', 'config', 'deploy',
-    'restart', 'stop', 'self-update', 'startup-log', 'tailnet', 'pods',
+    'restart', 'stop', 'self-update', 'startup-log', 'tailnet', 'pods', 'tunnel',
     'job',
   ]);
   return GLOBAL.has(head) ? null : head;
@@ -172,7 +172,7 @@ export async function callEndpoint(host, method, path, body = null) {
       await pollJob(host, parsed.job_id, _jobPollAbort.signal, entryId);
     }
 
-    if (['start', 'stop', 'restart', 'deploy', '/config'].some(k => path.includes(k))) {
+    if (['start', 'stop', 'restart', 'deploy', '/config', 'tunnel/'].some(k => path.includes(k))) {
       setTimeout(() => window.refreshCurrent?.(), 2000);
     }
   } catch (e) {

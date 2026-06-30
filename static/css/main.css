@@ -171,6 +171,17 @@ body {
   font-size: 0.7rem; color: var(--text-3); margin-top: 0.2rem;
   font-family: "SF Mono", monospace;
 }
+.page-hw {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+.page-hw:empty { display: none; }
+.hw-chip {
+  font-size: 0.68rem; color: #aaa; background: var(--bg-3, #161616);
+  border: 1px solid var(--border, #222); border-radius: 4px;
+  padding: 0.15rem 0.45rem; line-height: 1.35;
+}
+.hw-chip-gpu { color: #c4b5fd; border-color: #3b2d6b; background: #14101f; }
 
 .header-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
 
@@ -339,6 +350,17 @@ button:not(:disabled):active { transform: scale(0.96); }
   color: #fef3c7;
   background: #2a1f0a;
   border-color: #92400e;
+}
+
+.ng-domains-list { display: flex; flex-direction: column; gap: 0.35rem; }
+.ng-domain-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+  padding: 0.35rem 0.5rem; background: var(--bg-3,#161616);
+  border: 1px solid var(--border,#222); border-radius: 4px;
+}
+.ng-domain-name {
+  font-size: 0.72rem; font-family: ui-monospace, monospace; color: #ccc;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
 /* version row */

@@ -94,6 +94,9 @@ export async function selectNode(host, label, opts = {}) {
   document.getElementById('page-sub').textContent = host;
   document.getElementById('btn-update').style.display = 'inline-block';
   document.getElementById('btn-update-force').style.display = 'inline-block';
+  const ngBtn = document.getElementById('btn-ngrok-config');
+  if (ngBtn) ngBtn.style.display = 'inline-block';
+  clearPageHw();
   document.getElementById('main-content').innerHTML =
     '<div class="empty"><span class="spinner"></span> Loading status…</div>';
 
@@ -104,13 +107,82 @@ export async function refreshCurrent() {
   if (_currentHost) await loadNodeContent(_currentHost);
 }
 
+function _fmtVramGb(vramMb) {
+  if (!vramMb) return '';
+  const gb = vramMb / 1024;
+  return `${gb >= 10 ? Math.round(gb) : gb.toFixed(1)} GB`;
+}
+
+function _gpuSummary(si) {
+  const gpus = si.gpus || [];
+  if (!gpus.length) {
+    if (si.gpu_label) return { text: si.gpu_label, tip: null };
+    if (si.gpu_vendor) return { text: String(si.gpu_vendor).toUpperCase(), tip: null };
+    return { text: 'No GPU detected', tip: null };
+  }
+  const n = gpus.length;
+  const models = [...new Set(gpus.map(g => g.model).filter(Boolean))];
+  const tip = gpus.map((g, i) => {
+    const v = g.vram_mb ? _fmtVramGb(g.vram_mb) : '?';
+    return `#${i + 1}: ${g.model || 'Unknown'}${v ? ` — ${v}` : ''}`;
+  }).join('\n');
+  if (models.length === 1) {
+    const vram = _fmtVramGb(gpus[0]?.vram_mb);
+    const count = n > 1 ? `${n}× ` : '';
+    const vramPart = vram ? ` (${vram}${n > 1 ? ' each' : ''})` : '';
+    return { text: `${count}${models[0]}${vramPart}`, tip };
+  }
+  return { text: `${n} GPUs`, tip };
+}
+
+function updatePageHw(data) {
+  const el = document.getElementById('page-hw');
+  if (!el) return;
+  const si = data?.system_info;
+  if (!si) {
+    el.innerHTML = '';
+    return;
+  }
+
+  const chips = [];
+  const gpu = _gpuSummary(si);
+  chips.push(`<span class="hw-chip hw-chip-gpu" title="${esc(gpu.tip || gpu.text)}">🖥 ${esc(gpu.text)}</span>`);
+
+  if (si.total_memory_gb) {
+    chips.push(`<span class="hw-chip" title="System RAM">⊟ ${esc(String(si.total_memory_gb))} GB RAM</span>`);
+  }
+  if (si.cpu_cores) {
+    const cpuTip = si.cpu_model ? esc(si.cpu_model) : '';
+    chips.push(`<span class="hw-chip" title="${cpuTip}">⚙ ${esc(String(si.cpu_cores))} cores</span>`);
+  }
+  if (si.nvidia_driver_version) {
+    chips.push(`<span class="hw-chip" title="NVIDIA driver">CUDA drv ${esc(si.nvidia_driver_version)}</span>`);
+  }
+
+  el.innerHTML = chips.join('');
+}
+
+function clearPageHw() {
+  const el = document.getElementById('page-hw');
+  if (el) el.innerHTML = '';
+}
+
 async function loadNodeContent(host) {
   try {
-    const r = await fetch(`${API}/api/nodes/${encodeURIComponent(host)}/status`);
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const status = await r.json();
+    const [statusRes, sysRes] = await Promise.all([
+      fetch(`${API}/api/nodes/${encodeURIComponent(host)}/status`),
+      fetch(`${API}/api/proxy/${encodeURIComponent(host)}/system-info`),
+    ]);
+    if (!statusRes.ok) throw new Error(`HTTP ${statusRes.status}`);
+    const status = await statusRes.json();
+    if (sysRes.ok) {
+      updatePageHw(await sysRes.json());
+    } else {
+      clearPageHw();
+    }
     renderNodePage(host, status);
   } catch (e) {
+    clearPageHw();
     document.getElementById('main-content').innerHTML =
       `<div class="empty" style="color:#555">No comfy-runner on this node<br><small>${e.message}</small></div>`;
   }
