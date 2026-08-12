@@ -1,27 +1,24 @@
 # comfy-runner-dashboard
 
-A local web dashboard for managing remote [comfy-runner](https://github.com/Kosinkadink/comfy-runner) instances over your Tailscale network. Monitor status, deploy versions, control instances, and browse all API endpoints from one place.
+A local web dashboard for managing remote [comfy-runner](https://github.com/Kosinkadink/comfy-runner) instances. It discovers machines on your Tailscale network, can also drive RunPod pods via API key, and proxies the runner HTTPS API so the browser never has to talk to self-signed `:9189` endpoints directly.
 
 ## Requirements
 
 - Python 3.x
-- [Tailscale](https://tailscale.com/) installed and authenticated on your machine
+- [Tailscale](https://tailscale.com/) installed and logged in on this machine (for the **Nodes** sidebar)
 - Remote machines running [comfy-runner](https://github.com/Kosinkadink/comfy-runner) on port `9189`
+- Optional: a RunPod API key for the **RunPod** sidebar (`RUNPOD_API_KEY`)
 
 ## Setup
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env   # then set RUNPOD_API_KEY=rk_…
+cp .env.example .env   # then set RUNPOD_API_KEY=rk_… if you use RunPod
 ```
-
-`RUNPOD_API_KEY` is read from `.env` (gitignored). Needed for the **RunPod** sidebar: list / start / stop / terminate pods and open their ComfyUI / runner URLs.
 
 ## Running
 
-**macOS — double-click:**
-
-Double-click `start-dashboard.command` in Finder. The first time, right-click → Open to bypass the Gatekeeper prompt.
+**macOS — double-click:** `start-dashboard.command` (first time: right-click → Open).
 
 **Terminal:**
 
@@ -29,131 +26,124 @@ Double-click `start-dashboard.command` in Finder. The first time, right-click �
 python3 server.py
 ```
 
-Then open [http://localhost:7890](http://localhost:7890) in your browser.
+Open [http://localhost:7890](http://localhost:7890). The server binds `127.0.0.1` only.
 
-## Features
+## How it works
 
-### RunPod pods
+```
+Browser (localhost:7890)
+  → FastAPI (server.py)
+      → tailscale status --json          # list online peers
+      → curl -sk --noproxy '*'          # proxy to https://<host>:9189/…
+      → RunPod REST API                 # pods / stock / volumes (optional)
+```
 
-The sidebar **RunPod** section lists pods from your account (via `RUNPOD_API_KEY`):
+Browsers cannot call comfy-runner directly (self-signed certs, CORS). The dashboard is a thin local proxy plus UI. No Tailscale auth tokens are stored; discovery is just the local `tailscale` CLI.
 
-- **Balance / spend** — account credit under the RunPod header
-- **Launch** — simple wizard: pick GPU + place (dropdowns) → Keep my files / Temporary → Launch machine. With “Keep my files”, the dashboard reuses a same-place network volume or auto-creates a 200GB one
-- **Start / Stop machine** — GPU lifecycle. Stopped machines stay pinned to one host; if Start fails with “not enough free GPUs”, use **Launch** (or **Find a free machine**) instead of retrying forever
-- **Open** — ComfyUI public proxy URL (`*.proxy.runpod.net`)
-- **Manage instances** — opens the normal dashboard instance UI against this pod’s runner API (deploy, branch switch, models, start/stop ComfyUI)
-- **Terminate** — permanently delete the pod (network volumes are kept)
+## Tailscale nodes
 
-Network volumes are locked to one datacenter. Launch only offers places with stock, and only attaches volumes that match that place — you don’t need to paste volume IDs.
+The sidebar **Nodes** section lists online Tailscale peers from `tailscale status --json`.
 
-Launch uses `ghcr.io/kosinkadink/comfy-runner:latest` with ports `8188` + `9189`, cloud type Community (no advanced fields in the UI).
+- Click a peer to load its comfy-runner status (installations, hardware chips, instance cards).
+- **Runners only** checkbox: when on, the dashboard probes each online peer on `:9189` and only keeps hosts that answer. Useful on a busy tailnet; turn it off if a slow runner is missing.
+- Last selected node is remembered in `localStorage`.
+- Header actions for the selected node:
+  - **Self-update / Force-update** — update comfy-runner on that machine (`POST /self-update`)
+  - **ngrok** — edit that node’s ngrok authtoken / reserved domain pool
 
-### Creating a new instance
+Proxy targets use the peer’s MagicDNS name (`https://<host>.tail….ts.net:9189`). If `curl -k https://<host>:9189/status` works from this laptop, the dashboard can reach it too (`--noproxy '*'` bypasses a misconfigured system HTTP proxy).
 
-In the main area, the **"+ New instance"** dashed tile at the end of the grid initialises a fresh ComfyUI install on the selected node:
+RunPod hosts use `*-9189.proxy.runpod.net` instead; the port is already in the hostname, so `:9189` is not appended again.
 
-- **Instance name** — lowercase letters/digits + `-`/`_`. Becomes the name used in all per-instance API paths.
-- **Start instance after init** — launches ComfyUI right after the install completes.
-- **Advanced** (collapsed by default) — only expand if you need to override the runner's auto-detected GPU variant or enable CUDA compatibility mode for older NVIDIA drivers. The dropdown covers the common Linux/Windows/macOS × NVIDIA/AMD/Intel/MPS/CPU combinations; **Custom variant id…** lets you type any variant string the runner accepts.
+## RunPod pods
 
-Submits a single `POST /<name>/deploy` with `{latest: true}` — the runner sees no existing record, auto-inits (downloads the standalone Python env, clones ComfyUI), then immediately checks out the latest stable release. Progress streams to the bottom Job log console.
+Needs `RUNPOD_API_KEY` in `.env`. The sidebar **RunPod** section then shows:
 
-### Instance Cards
+- Account balance / spend
+- **Launch** — pick GPU + datacenter (stock-aware), Keep my files / Temporary, then create a machine. With “Keep my files”, reuses a same-place network volume or creates a 200GB one
+- **Start / Stop** — GPU lifecycle. Stopped pods stay pinned to one host; if Start fails with “not enough free GPUs”, use **Launch** / **Find a free machine**
+- **Open** — ComfyUI public proxy URL
+- **Manage instances** — same instance UI as Tailscale nodes, aimed at the pod’s runner proxy
+- **Terminate** — delete the pod (network volumes kept)
 
-Each ComfyUI installation shows:
-- Running status, port, uptime, PID
-- Deployed version (release tag, branch, commit hash)
-- **PR badge** — when the instance is checked out at a PR head (set by `POST /<name>/deploy` with `pr=`), a purple `PR owner/repo#N` chip appears, linking to the GitHub PR. Hover for the PR title.
-- **Start / Stop / Restart** buttons
+Launch image: `ghcr.io/kosinkadink/comfy-runner:latest`, ports `8188` + `9189`, Community cloud.
+
+## Instances
+
+Selecting a Tailscale node or **Manage instances** on a RunPod pod shows the instance grid.
+
+Each card:
+
+- Health (stopped / healthy / unhealthy), port, uptime, PID
+- Deployed version (tag, branch, commit); **PR badge** when checked out at a PR head
+- **Open** / **ngrok** links when the instance is running and has a serve / tunnel URL
+- **Start / Stop / Restart**, **Deploy**, **Launch args**, **Tunnel**, **Models**, **Nodes**
+- ⋮ menu: force unlock, view logs, delete instance
+
+**+ New instance** initialises a fresh install via `POST /<name>/deploy` with `{latest: true}` (auto-init when no record exists). Optional advanced GPU variant / CUDA compat overrides.
 
 ### Deploy
 
-Click **Deploy** on any instance to open the deploy modal. Options:
-
-| Mode | Description |
-|------|-------------|
-| Latest release | Update to the newest stable ComfyUI release |
-| Pull current branch | Fetch latest commits on the currently tracked branch |
-| Branch | Switch to a specific branch (default fallback is `master` — ComfyUI's default branch) |
-| Tag / release | Pin to a specific git tag |
-| Commit SHA | Pin to an exact commit |
-| Pull Request | Check out an open PR |
+| Mode | Effect |
+|------|--------|
+| Latest release | Newest stable ComfyUI release |
+| Pull current branch | `git pull` on the tracked branch |
+| Branch / Tag / Commit / PR | Pin to that ref |
 | Reset | Revert to the original ref |
 
-Two checkboxes:
-- **Start instance after deploy** — automatically restart after deploying.
-- **Force (drop dirty changes)** — destructive: `git reset --hard` + `git clean -fd` on the ComfyUI clone before deploying. Runtime directories (`styles/`, `output/`, `input/`, `temp/`, `user/`, `models/`, `custom_nodes/`) are still preserved. Default behavior (unchecked) is to stash any non-runtime dirty files and continue, recoverable via `git stash list` on the box.
+Options: start after deploy; **Force** (`git reset --hard` + clean, runtime dirs preserved). Default without Force is stash non-runtime dirty files.
 
-> To get the absolute latest commit on master: first deploy with **Branch = `master`**, then use **Pull current branch** for subsequent updates.
-
-#### Private fork / private repo deploys
-
-For **Branch** and **Pull Request** modes the deploy modal shows a collapsible **"Repo & auth"** section:
-
-- **Repo URL** — any `https://github.com/owner/repo.git` URL. Pulls the branch / PR from there instead of upstream ComfyUI.
-- **GitHub token** — optional. Only needed for private repos. The token is injected into the URL as `https://x-access-token:<TOKEN>@github.com/…` and sent as the `repo` field of the deploy body.
-- **Remember repo + token in this browser** — opt-in, persisted to `localStorage`. Untick + submit to wipe it.
-
-**To switch back to public ComfyUI:** open Deploy → leave Repo URL blank → pick **Latest release** or a public-branch deploy. The runner uses a temporary `deploy-pr` / `deploy-branch` git remote for repo overrides and never touches `origin`, so reverting is a single deploy away.
-
-> ⚠ **Token caveat:** the runner writes the temporary remote into `.git/config` on the target machine. The token is readable there until the next non-private deploy overwrites it. Use a fine-scoped PAT (read-only on the specific repo), not a full-account token. Only `https://github.com/…` URLs get the token injection — other hosts (GitLab, Gitea, self-hosted GHE) are sent through unchanged.
+**Branch** and **PR** modes can override repo + optional GitHub token (private forks). Token is injected only for `https://github.com/…` URLs. Prefer a fine-scoped PAT.
 
 ### Models
 
-The Models modal (per instance) handles both downloading from a URL and uploading from your local machine.
+Per-instance **Models** modal:
 
-- **Directory** is a dropdown of all 25 model subfolders ComfyUI knows about (`checkpoints`, `loras`, `vae`, `controlnet`, `upscale_models`, `clip`, `clip_vision`, `text_encoders`, `embeddings`, `unet`, `diffusion_models`, `diffusers`, `ipadapter`, `hypernetworks`, `style_models`, `gligen`, `photomaker`, `audio_encoders`, `vae_approx`, `model_patches`, `configs`, `background_removal`, `frame_interpolation`, `optical_flow`, `latent_upscale_models`). Pick **Custom…** at the bottom to type any folder name the runner accepts.
-- **HuggingFace token** field (download tab) is optional. Required for private / gated repos — without it, HF returns `404 Not Found` (it deliberately hides existence from unauthorized requests).
-- Download progress is polled every 2s and reported live in the modal. On completion, the result panel splits into `Downloaded` / `Skipped` / `Failed` with per-file errors — no silent "Done!" when the runner actually returned a 4xx for the URL.
+- **Download** — multi-entry queue (URL + folder each); optional HuggingFace token; live job polling
+- **Upload** — local file to a model subfolder (or Custom…)
+- **Manage** — browse folders / files, move or copy between dirs
 
-### Async job tracking
+### Custom nodes
 
-Long-running endpoints (deploy, download-model, self-update, init, …) on the runner return immediately with `{ "job_id": "..." }`. The dashboard now follows these automatically:
+Per-instance **Nodes** modal:
 
-- The global response panel polls `GET /job/<id>` every second after any 200 response that contains `job_id`.
-- It shows live `status / label / output tail` and switches the panel red when the final state is `error` or `cancelled`.
-- A 30-minute hard cap (deploy/global poller) and 6-hour cap (model-download poller) keep the UI from polling forever; falling off the cap shows a clear "stopped polling, recover via `GET /job/<id>`" message rather than silently giving up.
-- Only one job poll is in-flight at a time per panel — kicking off a new request aborts the previous poll cleanly.
+- Install from a **git URL** (`https://…` / `git@…`) or a **CNR** node id (optional version)
+- List installed nodes; enable / disable / remove
+- `add` / `rm` are async jobs and are polled in the modal
 
-### Self-update
+Restart ComfyUI after installing nodes so they load.
 
-Two buttons in the top-right update the comfy-runner server itself on the remote machine:
+### Launch args & tunnels
 
-- **Self-update** — runs `git pull --ff-only`
-- **Force-update** — runs `git reset --hard origin/main` (discards local changes, prompts for confirmation)
+- **Launch args** — edit ComfyUI process flags (including disable-all-custom-nodes) via instance config
+- **Tunnel** — start/stop ngrok or Tailscale tunnel for that instance’s ComfyUI port (runner must allow tunnels)
 
-### API Endpoint Browser
+### Job log
 
-A tabbed panel exposes all comfy-runner API endpoints for interactive testing:
+Bottom **Job log** console keeps a persistent trail of proxy calls and polled async jobs (`job_id`). Expand / clear from the header strip. Long ops (deploy, model download, node install, …) update in place instead of flooding the panel.
 
-| Tab | Endpoints |
-|-----|-----------|
-| Global | status, installations, system-info, jobs, config, deploy, restart, stop, self-update, startup-log, tailnet/runners, pods/self-update, openapi.json |
-| Instance | status, info, logs, start, stop, restart, deploy, config, rename, unlock, delete, tunnel/start, tunnel/stop |
-| Nodes | list, add/remove/enable/disable |
-| Models | download, move, upload, upload status, workflow-models |
-| Outputs | list output files, download a single file |
-| ComfyUI | proxy GET/POST to a running instance's ComfyUI server (for endpoints like `/queue`, `/system_stats`, `/object_info`) |
-| Snapshot | list, save, restore, import, show/diff/export |
-| Reviews | local PR review prep, cleanup |
-| Jobs | poll status, cancel |
+## API endpoint browser
 
-Endpoints that accept a request body open a JSON editor modal before sending.
+Below the instance grid, a tabbed panel exposes runner routes for ad-hoc calls (Global, Instance, Nodes, Models, Outputs, ComfyUI proxy, Snapshot, Reviews, Jobs). Dedicated UIs open for deploy, models, custom nodes, and tunnel start; other body endpoints use the generic JSON editor.
 
 ## Configuration
 
-All configuration is in `server.py`:
+Edit constants in `server.py`:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| Dashboard port | `7890` | Local port for the dashboard UI |
-| Remote port | `9189` | Port comfy-runner listens on |
-| Request timeout | `30s` | Timeout for proxied requests (note: long-running operations return a `job_id` and are polled, so this only caps the *initial* request) |
+| Dashboard port | `7890` | Local UI |
+| Remote port | `9189` | comfy-runner |
+| Request timeout | `30s` | Initial proxied request only (jobs are polled separately) |
 
-The dashboard discovers remote nodes automatically via `tailscale status` and connects over HTTPS, accepting self-signed certificates.
+Env (`.env`):
+
+| Variable | Purpose |
+|----------|---------|
+| `RUNPOD_API_KEY` | RunPod sidebar + Launch / stock / volumes |
 
 ## Development
 
-- All static assets under `/static/` (and `/`) are served with `Cache-Control: no-store`. Edit any HTML/CSS/JS file and a normal page refresh picks it up — no Cmd+Shift+R hard refresh needed during dev.
-- The dashboard is plain ES modules + a small FastAPI backend (`server.py`); no build step.
-- `server.py` shells out to `curl --noproxy '*'` for the proxy so requests to your tailnet bypass any system-wide HTTP proxy / VPN. If you can reach the runner with `curl -k https://<host>:9189/status` from the same machine, the dashboard can too.
+- Static assets are served with `Cache-Control: no-store`. Edit HTML/CSS/JS and refresh.
+- Plain ES modules + FastAPI; no bundler.
+- New comfy-runner routes usually need only a row in `ENDPOINTS` (`static/js/endpoints.js`), unless you want a custom modal.
