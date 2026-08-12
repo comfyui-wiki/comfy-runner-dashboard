@@ -22,10 +22,20 @@ export function closeTunnel() {
   document.getElementById('tunnel-modal').classList.remove('open');
 }
 
+// ngrok --url expects a bare hostname; runner builds https://{domain} itself.
+function _normalizeNgrokDomain(raw) {
+  let d = String(raw || '').trim();
+  if (!d) return '';
+  d = d.replace(/^https?:\/\//i, '');
+  d = d.replace(/\/+$/, '');
+  d = d.split('/')[0]; // drop any path after hostname
+  return d;
+}
+
 export function submitTunnelStart() {
   if (!_tnHost || !_tnInst) return;
   const provider = document.querySelector('input[name="tn-provider"]:checked')?.value || 'ngrok';
-  const domain = document.getElementById('tn-domain').value.trim();
+  const domain = _normalizeNgrokDomain(document.getElementById('tn-domain').value);
   const body = { provider };
   if (domain) body.domain = domain;
   closeTunnel();

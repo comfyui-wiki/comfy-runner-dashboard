@@ -17,7 +17,10 @@
       <div class="sidebar-brand">comfy-runner</div>
     </div>
   </div>
-  <div id="sidebar-nodes">
+  <div id="sidebar-pods">
+    <div style="padding:0.75rem 1rem;font-size:0.72rem;color:#333;text-align:center">RunPod…</div>
+  </div>
+  <div id="sidebar-nodes" style="border-top:1px solid var(--border);margin-top:0.35rem;padding-top:0.35rem">
     <div style="padding:1rem;font-size:0.72rem;color:#333;text-align:center">Loading…</div>
   </div>
 </div>
@@ -389,8 +392,8 @@
     </div>
 
     <div class="form-row">
-      <label class="form-label" for="tn-domain">Domain <span style="color:#555">(optional — ngrok only, overrides pool)</span></label>
-      <input class="ep-input" id="tn-domain" placeholder="e.g. myapp.ngrok-free.app" autocomplete="off">
+      <label class="form-label" for="tn-domain">Domain <span style="color:#555">(optional — hostname only, e.g. myapp.ngrok-free.app)</span></label>
+      <input class="ep-input" id="tn-domain" placeholder="leave blank for auto-assigned URL" autocomplete="off">
     </div>
 
     <div class="modal-footer">
@@ -438,6 +441,38 @@
       <button class="btn-ghost" onclick="closeNgrokConfig()">Cancel</button>
       <button class="btn-green" id="ng-save-btn" onclick="submitNgrokConfig()">Save</button>
     </div>
+  </div>
+</div>
+
+<!-- Custom nodes — list / install (git URL or CNR id) / enable / disable / remove -->
+<div class="modal-overlay" id="custom-nodes-modal">
+  <div class="modal" style="width:640px;max-width:96vw">
+    <div class="modal-title">Custom nodes</div>
+    <div style="font-size:0.75rem;color:#555;margin-bottom:1rem;line-height:1.45">
+      Instance: <span id="cn-instance" style="color:#aaa"></span>
+      — install via git clone or CNR id. Restart ComfyUI afterwards to load new nodes.
+    </div>
+
+    <div class="form-row">
+      <label class="form-label" for="cn-source">Git URL or CNR node id</label>
+      <input class="ep-input" id="cn-source" placeholder="https://github.com/user/ComfyUI-SomeNode.git" autocomplete="off">
+    </div>
+    <div class="form-row">
+      <label class="form-label" for="cn-version">CNR version <span style="color:#555">(optional, ignored for git URLs)</span></label>
+      <input class="ep-input" id="cn-version" placeholder="e.g. 1.0.0" autocomplete="off">
+    </div>
+    <div class="modal-footer" style="margin-top:0;padding-top:0;border-top:none">
+      <button class="btn-ghost" onclick="closeCustomNodes()">Close</button>
+      <button class="btn-green" id="cn-add-btn" onclick="submitCustomNodeAdd()">+ Install</button>
+    </div>
+
+    <div id="cn-resp" class="mm-resp" style="max-height:140px"></div>
+
+    <div class="cn-list-header">
+      <label class="form-label" style="margin:0">Installed</label>
+      <button type="button" class="btn-ghost btn-sm" id="cn-refresh-btn" onclick="cnRefresh()">↻ Refresh</button>
+    </div>
+    <div id="cn-list" class="cn-list"></div>
   </div>
 </div>
 

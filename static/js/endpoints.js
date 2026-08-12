@@ -3,6 +3,7 @@ import { openModal } from './modals/generic.js';
 import { openDeploy } from './modals/deploy.js';
 import { openModelModal } from './modals/model.js';
 import { openTunnel } from './modals/tunnel.js';
+import { openCustomNodes } from './modals/custom-nodes.js';
 
 // Safely embed an arbitrary string as a JS argument inside an HTML on* attribute.
 // JSON.stringify gives us a valid JS string literal; esc() then makes it safe
@@ -70,7 +71,7 @@ const ENDPOINTS = [
   { section: 'Instance', method: 'POST',   path: '/{name}/tunnel/stop',   desc: 'Stop active tunnel' },
   // Nodes
   { section: 'Nodes', method: 'GET',  path: '/{name}/nodes', desc: 'List custom nodes' },
-  { section: 'Nodes', method: 'POST', path: '/{name}/nodes', desc: 'Custom node action', hasBody: true },
+  { section: 'Nodes', method: 'POST', path: '/{name}/nodes', desc: 'Install / manage custom nodes (git URL or CNR)', hasBody: true },
   // Models
   { section: 'Models', method: 'POST', path: '/{name}/download-model',      desc: 'Download a model', hasBody: true },
   { section: 'Models', method: 'POST', path: '/{name}/move-model',          desc: 'Move/copy a model', hasBody: true },
@@ -230,6 +231,7 @@ function renderInstanceCard(host, inst, info) {
       <button class="btn-ghost btn-sm" onclick="window.openLaunchArgs(${jsArg(host)},${jsArg(inst.name)})">⚙ Launch args</button>
       <button class="btn-ghost btn-sm" onclick="window.openTunnel(${jsArg(host)},${jsArg(inst.name)},${jsArg(tunnelUrl || '')})">🌐 Tunnel</button>
       <button class="btn-ghost btn-sm" onclick="window.openModelModal(${jsArg(host)},${jsArg(inst.name)},'download')">⊞ Models</button>
+      <button class="btn-ghost btn-sm" onclick="window.openCustomNodes(${jsArg(host)},${jsArg(inst.name)})">⧉ Nodes</button>
       <button class="btn-ghost btn-sm inst-more-btn" onclick="window.toggleInstMenu(event, ${jsArg(inst.name)})" title="More actions">⋮</button>
       <div class="inst-more-menu" id="inst-more-menu-${esc(inst.name)}">
         <button class="inst-more-item" onclick="window.callEndpoint(${jsArg(host)},'POST','/'+${jsArg(inst.name)}+'/unlock'); window.closeInstMenus()">
@@ -352,6 +354,9 @@ export function runEp(host, method, pathTpl, pathId, hasBody) {
     const instName = resolvedPath.split('/')[1] || '';
     const tab = resolvedPath.endsWith('/upload-model') ? 'upload' : 'download';
     openModelModal(host, instName, tab);
+  } else if (hasBody && resolvedPath.endsWith('/nodes')) {
+    const instName = resolvedPath.split('/')[1] || '';
+    openCustomNodes(host, instName);
   } else if (hasBody && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
     openModal(host, method, resolvedPath);
   } else {

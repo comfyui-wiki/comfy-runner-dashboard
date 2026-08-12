@@ -26,31 +26,30 @@ ComfyUI installations (instance-a, instance-b, …) on local ports 8188+
 Three discovery / control layers:
 
 1. **`tailscale status --json`** is shelled out to enumerate online peers. That is the *only* place Tailscale is touched. No Tailscale auth tokens, no API keys.
-2. **`/api/proxy/{host}/{path}`** transparently forwards any HTTP method to `https://{host}:9189{path}`, using `curl -sk` (skip cert verification, bypass system proxy). All instance management — start/stop/deploy/logs/etc. — flows through this single proxy route.
-3. **`/api/dashboard/*`** is a small set of endpoints that manage the dashboard process *itself* (restart, git-pull self-update). Everything else is just a comfy-runner API call wrapped by the proxy.
+2. **`/api/proxy/{host}/{path}`** transparently forwards any HTTP method to the remote comfy-runner. For Tailscale hosts this is `https://{host}:9189{path}`. For RunPod proxy hosts (`*-9189.proxy.runpod.net`) the port is already in the hostname, so no `:9189` is appended. Uses `curl -sk --noproxy '*'`.
+3. **`/api/pods*`** talks to the RunPod REST API using `RUNPOD_API_KEY` from `.env` (via `python-dotenv` + `runpod_client.py`). List / start / stop / terminate machines. Opening **Manage instances** reuses the existing node UI against the pod’s runner proxy host.
+4. **`/api/dashboard/*`** (if present) manages the dashboard process itself.
 
 ## Repo layout
 
 ```
 comfy-runner-dashboard/
-├── server.py                 # FastAPI app — ~180 lines, the entire backend
-├── requirements.txt          # fastapi, uvicorn, httpx, aiofiles  (httpx/aiofiles unused but listed)
+├── server.py                 # FastAPI app — Tailscale proxy + RunPod pod APIs
+├── runpod_client.py          # RunPod REST helper (curl --noproxy)
+├── .env.example              # RUNPOD_API_KEY=…
+├── requirements.txt          # fastapi, uvicorn, httpx, python-dotenv, …
 ├── README.md                 # user-facing docs
 ├── agents.md                 # ← this file
 └── static/
-    ├── index.html            # all DOM + modal markup (single page)
-    ├── css/main.css          # all styles, dark theme, hand-rolled
+    ├── index.html
+    ├── css/main.css
     └── js/
-        ├── app.js            # entry point — wires imports onto window for inline onclick=
-        ├── utils.js          # API constant, esc(), fmtUptime(), callEndpoint(), showResp()
-        ├── nodes.js          # sidebar + node selection (loadNodes, selectNode, refreshCurrent)
-        ├── endpoints.js      # ENDPOINTS table, instance cards, API tab panel, runEp()
-        ├── dashboard-self.js # restart/update of the dashboard itself + dropdown menu
+        ├── app.js
+        ├── utils.js
+        ├── nodes.js          # Tailscale sidebar
+        ├── pods.js           # RunPod sidebar + pod detail page
+        ├── endpoints.js
         └── modals/
-            ├── generic.js    # plain JSON-body modal (POST/PUT/PATCH with no special UI)
-            ├── deploy.js     # deploy modal (latest/pull/branch/tag/commit/PR/reset)
-            ├── model.js      # model download (URL → job poll) + upload (multipart)
-            └── tailnet.js    # tailnet auto-discovery viewer + fan-out self-update
 ```
 
 ## Backend (`server.py`)

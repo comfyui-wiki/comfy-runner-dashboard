@@ -2,29 +2,50 @@ import { API, esc } from './utils.js';
 import { renderNodePage } from './endpoints.js';
 
 const LS_LAST_HOST = 'dashboard.lastNode.v1';
+const LS_RUNNERS_ONLY = 'dashboard.nodes.runnersOnly.v1';
 
 let _currentHost = null;
 // Snapshot of last sidebar fetch — used to re-select after async restore.
 let _lastNodes = [];
+let _lastMeta = null;
+
+function _getRunnersOnly() {
+  try { return localStorage.getItem(LS_RUNNERS_ONLY) === '1'; } catch { return false; }
+}
+
+function _setRunnersOnly(on) {
+  try { localStorage.setItem(LS_RUNNERS_ONLY, on ? '1' : '0'); } catch {}
+}
 
 export function getCurrentHost() { return _currentHost; }
 
+export function setRunnersOnlyFilter(on) {
+  _setRunnersOnly(!!on);
+  loadNodes();
+}
+
 export async function loadNodes() {
   const el = document.getElementById('sidebar-nodes');
+  const runnersOnly = _getRunnersOnly();
+  el.innerHTML = _sidebarHeader(runnersOnly, null) +
+    `<div class="sidebar-diag"><span class="spinner"></span> ` +
+    `${runnersOnly ? 'Probing runners…' : 'Loading nodes…'}</div>`;
   try {
-    const res = await fetch(`${API}/api/nodes`);
+    const q = runnersOnly ? '?runners_only=true' : '';
+    const res = await fetch(`${API}/api/nodes${q}`);
     if (!res.ok) {
       const raw = (await res.text()).trim().slice(0, 600);
-      el.innerHTML =
+      el.innerHTML = _sidebarHeader(runnersOnly, null) +
         `<div class="sidebar-diag sidebar-diag-err"><strong>HTTP ${res.status}</strong><br><span class="sidebar-diag-msg">${esc(raw || res.statusText)}</span></div>`;
       return;
     }
     const data = await res.json();
     _lastNodes = data.nodes ?? [];
-    renderSidebar(_lastNodes, data.error ?? null, data.meta ?? null);
+    _lastMeta = data.meta ?? null;
+    renderSidebar(_lastNodes, data.error ?? null, _lastMeta);
     _restoreLastNode();
   } catch (e) {
-    el.innerHTML =
+    el.innerHTML = _sidebarHeader(runnersOnly, null) +
       `<div class="sidebar-diag sidebar-diag-err"><strong>Could not load /api/nodes</strong><br><span class="sidebar-diag-msg">${esc(e.message)}</span></div>`;
   }
 }
@@ -51,23 +72,37 @@ function osIcon(os) {
   return '⬡';
 }
 
+function _sidebarHeader(runnersOnly, count) {
+  const countPart = count == null ? '' : ` (${count})`;
+  return `<div class="sidebar-section-label" style="display:flex;align-items:center;justify-content:space-between;gap:0.35rem">` +
+    `<span>Nodes${countPart}</span>` +
+    `<label class="sidebar-filter" title="Only list peers that answer on :9189 (can miss slow or briefly unreachable runners)">` +
+    `<input type="checkbox" ${runnersOnly ? 'checked' : ''} ` +
+    `onchange="window.setRunnersOnlyFilter(this.checked)">` +
+    `<span>Runners only</span></label></div>`;
+}
+
 function renderSidebar(nodes, discoveryError, meta) {
   const el = document.getElementById('sidebar-nodes');
+  const runnersOnly = _getRunnersOnly();
   if (discoveryError) {
-    el.innerHTML =
+    el.innerHTML = _sidebarHeader(runnersOnly, null) +
       `<div class="sidebar-diag sidebar-diag-err"><strong>Tailscale discovery failed</strong><br><span class="sidebar-diag-msg">${esc(discoveryError)}</span></div>`;
     return;
   }
   if (!nodes.length) {
     let sub = '';
-    if (meta && typeof meta.total_peers === 'number' && meta.total_peers > 0) {
+    if (runnersOnly && meta && typeof meta.online_peers === 'number' && meta.online_peers > 0) {
+      sub = `<div class="sidebar-diag-hint">${esc(String(meta.online_peers) + '/' + String(meta.total_peers))} peers online — none responding with comfy-runner on :9189. Turn off "Runners only" to see all peers.</div>`;
+    } else if (meta && typeof meta.total_peers === 'number' && meta.total_peers > 0) {
       sub = `<div class="sidebar-diag-hint">${esc(String(meta.online_peers) + '/' + String(meta.total_peers))} peers online — other devices may be shut down or not on Tailscale.</div>`;
     }
-    el.innerHTML =
-      `<div class="sidebar-diag"><span class="sidebar-diag-title">No online nodes</span>${sub}</div>`;
+    const title = runnersOnly ? 'No runners online' : 'No online nodes';
+    el.innerHTML = _sidebarHeader(runnersOnly, 0) +
+      `<div class="sidebar-diag"><span class="sidebar-diag-title">${title}</span>${sub}</div>`;
     return;
   }
-  el.innerHTML = `<div class="sidebar-section-label">Nodes (${nodes.length})</div>` +
+  el.innerHTML = _sidebarHeader(runnersOnly, nodes.length) +
     nodes.map(n => {
       const host = n.dns_name || n.hostname;
       const hostArg = esc(JSON.stringify(String(host)));
@@ -105,6 +140,11 @@ export async function selectNode(host, label, opts = {}) {
 
 export async function refreshCurrent() {
   if (_currentHost) await loadNodeContent(_currentHost);
+  // Also refresh RunPod sidebar when present.
+  try {
+    const { loadPodsSidebar } = await import('./pods.js');
+    await loadPodsSidebar();
+  } catch {}
 }
 
 function _fmtVramGb(vramMb) {

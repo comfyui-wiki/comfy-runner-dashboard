@@ -12,7 +12,10 @@ A local web dashboard for managing remote [comfy-runner](https://github.com/Kosi
 
 ```bash
 pip install -r requirements.txt
+cp .env.example .env   # then set RUNPOD_API_KEY=rk_…
 ```
+
+`RUNPOD_API_KEY` is read from `.env` (gitignored). Needed for the **RunPod** sidebar: list / start / stop / terminate pods and open their ComfyUI / runner URLs.
 
 ## Running
 
@@ -29,6 +32,21 @@ python3 server.py
 Then open [http://localhost:7890](http://localhost:7890) in your browser.
 
 ## Features
+
+### RunPod pods
+
+The sidebar **RunPod** section lists pods from your account (via `RUNPOD_API_KEY`):
+
+- **Balance / spend** — account credit under the RunPod header
+- **Launch** — simple wizard: pick GPU + place (dropdowns) → Keep my files / Temporary → Launch machine. With “Keep my files”, the dashboard reuses a same-place network volume or auto-creates a 200GB one
+- **Start / Stop machine** — GPU lifecycle. Stopped machines stay pinned to one host; if Start fails with “not enough free GPUs”, use **Launch** (or **Find a free machine**) instead of retrying forever
+- **Open** — ComfyUI public proxy URL (`*.proxy.runpod.net`)
+- **Manage instances** — opens the normal dashboard instance UI against this pod’s runner API (deploy, branch switch, models, start/stop ComfyUI)
+- **Terminate** — permanently delete the pod (network volumes are kept)
+
+Network volumes are locked to one datacenter. Launch only offers places with stock, and only attaches volumes that match that place — you don’t need to paste volume IDs.
+
+Launch uses `ghcr.io/kosinkadink/comfy-runner:latest` with ports `8188` + `9189`, cloud type Community (no advanced fields in the UI).
 
 ### Creating a new instance
 

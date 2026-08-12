@@ -1,5 +1,5 @@
 import { callEndpoint, toggleJobConsole, clearJobConsole } from './utils.js';
-import { loadNodes, selectNode, refreshCurrent } from './nodes.js';
+import { loadNodes, selectNode, refreshCurrent, setRunnersOnlyFilter } from './nodes.js';
 import { switchTab, runEp } from './endpoints.js';
 import { closeModal, submitModal } from './modals/generic.js';
 import { closeDeploy, dmModeChange, submitDeploy, openDeploy } from './modals/deploy.js';
@@ -8,14 +8,35 @@ import { openLaunchArgs, closeLaunchArgs, submitLaunchArgs } from './modals/laun
 import { openNewInstance, closeNewInstance, submitNewInstance, niVariantChange } from './modals/new-instance.js';
 import { openTunnel, closeTunnel, submitTunnelStart, submitTunnelStop } from './modals/tunnel.js';
 import { openNgrokConfig, closeNgrokConfig, ngAddDomain, ngRemoveDomain, submitNgrokConfig } from './modals/ngrok-config.js';
+import {
+  openCustomNodes, closeCustomNodes, submitCustomNodeAdd, cnRefresh, cnNodeAction,
+} from './modals/custom-nodes.js';
+import {
+  loadPodsSidebar, selectPod, podStart, podStop, podTerminate, podManage,
+} from './pods.js';
+import {
+  openStockPage, selectStockGpu, selectStockDc, createPodFromStock,
+} from './stock.js';
 
 // ── Expose to HTML onclick handlers ──────────────────────────────────────────
 
 window.selectNode      = selectNode;
 window.refreshCurrent  = refreshCurrent;
+window.setRunnersOnlyFilter = setRunnersOnlyFilter;
 window.callEndpoint    = callEndpoint;
 window.switchTab       = switchTab;
 window.runEp           = runEp;
+
+window.loadPodsSidebar = loadPodsSidebar;
+window.selectPod       = selectPod;
+window.podStart        = podStart;
+window.podStop         = podStop;
+window.podTerminate    = podTerminate;
+window.podManage       = podManage;
+window.openStockPage   = openStockPage;
+window.selectStockGpu  = selectStockGpu;
+window.selectStockDc   = selectStockDc;
+window.createPodFromStock = createPodFromStock;
 
 window.closeModal      = closeModal;
 window.submitModal     = submitModal;
@@ -59,6 +80,12 @@ window.closeNgrokConfig   = closeNgrokConfig;
 window.ngAddDomain        = ngAddDomain;
 window.ngRemoveDomain     = ngRemoveDomain;
 window.submitNgrokConfig  = submitNgrokConfig;
+
+window.openCustomNodes     = openCustomNodes;
+window.closeCustomNodes    = closeCustomNodes;
+window.submitCustomNodeAdd = submitCustomNodeAdd;
+window.cnRefresh           = cnRefresh;
+window.cnNodeAction        = cnNodeAction;
 
 window.toggleJobConsole = toggleJobConsole;
 window.clearJobConsole  = clearJobConsole;
@@ -140,3 +167,4 @@ document.addEventListener('click', e => {
 
 initDropZone();
 loadNodes();
+loadPodsSidebar();
