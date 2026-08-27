@@ -87,13 +87,13 @@ Each card:
 | Mode | Effect |
 |------|--------|
 | Latest release | Newest stable ComfyUI release |
-| Pull current branch | `git pull` on the tracked branch |
+| Pull tracked ref | Re-fetch the currently tracked **PR or branch** (not “whatever git branch HEAD is on”). If the instance is on a PR, the dashboard shows that and can attach Repo & auth — runner-native `{pull:true}` cannot take a token. |
 | Branch / Tag / Commit / PR | Pin to that ref |
 | Reset | Revert to the original ref |
 
 Options: start after deploy; **Force** (`git reset --hard` + clean, runtime dirs preserved). Default without Force is stash non-runtime dirty files.
 
-**Branch** and **PR** modes can override repo + optional GitHub token (private forks). Token is injected only for `https://github.com/…` URLs. Prefer a fine-scoped PAT.
+**Branch**, **PR**, and **Pull tracked ref** (when the instance is on a PR) can set Repo URL + optional GitHub token. Token is injected only for `https://github.com/…` URLs. Prefer a fine-scoped PAT.
 
 ### Models
 

@@ -166,8 +166,8 @@
         <label class="dm-opt">
           <input type="radio" name="dm-mode" value="pull" onchange="dmModeChange()">
           <div class="dm-opt-inner">
-            <div class="dm-opt-title">Pull current branch</div>
-            <div class="dm-opt-desc">Fetch latest commits on tracked branch</div>
+            <div class="dm-opt-title">Pull tracked ref</div>
+            <div class="dm-opt-desc">Re-fetch the tracked PR or branch</div>
           </div>
         </label>
         <label class="dm-opt">
@@ -213,12 +213,16 @@
       <input class="ep-input" id="dm-input-val" placeholder="">
     </div>
 
-    <!-- Repo / auth (only meaningful for branch/pr modes — runner only
-         forwards repo_url for those two paths). Collapsed by default. -->
+    <div id="dm-pull-hint" class="form-row" style="display:none">
+      <div id="dm-pull-hint-body" style="font-size:0.72rem;line-height:1.45;color:#aaa;background:var(--bg-3,#161616);border:1px solid var(--border,#222);border-radius:5px;padding:0.55rem 0.7rem"></div>
+    </div>
+
+    <!-- Repo / auth — branch/pr always; pull when tracked target is a PR
+         (dashboard rewrites pull→pr so the runner can use repo+token). -->
     <div class="form-row" id="dm-repo-row" style="display:none">
       <details id="dm-repo-details" style="background:var(--bg-3,#161616);border:1px solid var(--border,#222);border-radius:5px;padding:0.5rem 0.7rem">
         <summary style="cursor:pointer;font-size:0.74rem;color:#aaa;outline:none">
-          Repo &amp; auth <span style="color:#666;font-size:0.68rem">(private fork? click to expand)</span>
+          Repo &amp; auth <span style="color:#666;font-size:0.68rem">(private fork / GitHub auth? click to expand)</span>
         </summary>
         <div style="margin-top:0.65rem">
           <label class="form-label" for="dm-repo-url">Repo URL <span style="color:#555">(optional — defaults to upstream ComfyUI)</span></label>

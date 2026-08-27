@@ -227,7 +227,7 @@ function renderInstanceCard(host, inst, info) {
 
     <div class="inst-actions">
       <button class="btn-ghost btn-sm" onclick="window.callEndpoint(${jsArg(host)},'POST','/'+${jsArg(inst.name)}+'/restart')">↺ Restart</button>
-      <button class="btn-ghost btn-sm" onclick="window.openDeploy(${jsArg(host)},'/'+${jsArg(inst.name)}+'/deploy',${jsArg(inst.name)})">⬆ Deploy</button>
+      <button class="btn-ghost btn-sm" onclick="window.openDeploy(${jsArg(host)},'/'+${jsArg(inst.name)}+'/deploy',${jsArg(inst.name)},${esc(JSON.stringify({ pr: prNumber || null, branch: branch || null, repo: prRepo || null, title: prTitle || null }))})">⬆ Deploy</button>
       <button class="btn-ghost btn-sm" onclick="window.openLaunchArgs(${jsArg(host)},${jsArg(inst.name)})">⚙ Launch args</button>
       <button class="btn-ghost btn-sm" onclick="window.openTunnel(${jsArg(host)},${jsArg(inst.name)},${jsArg(tunnelUrl || '')})">🌐 Tunnel</button>
       <button class="btn-ghost btn-sm" onclick="window.openModelModal(${jsArg(host)},${jsArg(inst.name)},'download')">⊞ Models</button>
